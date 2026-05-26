@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, Alert, ScrollView } from 'react-native';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
@@ -6,6 +6,9 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { getSessions, saveSession } from '../utils/storage';
 import { categoryByKey } from '../utils/categories';
 import { sourceLabel } from '../parsers';
+import { isUnlocked } from '../utils/unlock';
+import { getMileageState, totalMiles, totalDeduction, entriesForYear } from '../utils/mileage';
+import Paywall from '../components/Paywall';
 import { colors } from '../theme';
 import brand from '../brand';
 // `t` is the transactions array in this screen, so the i18n helper is
@@ -43,10 +46,62 @@ export default function SummaryScreen({ navigation, route }) {
   var sessionId = route.params.sessionId;
   var [session, setSession] = useState(null);
 
+  // Paywall state. `pendingExport` remembers which export the user
+  // initiated so we can re-trigger it after a successful purchase
+  // without making them tap the button again.
+  var [paywallOpen, setPaywallOpen] = useState(false);
+  var pendingExport = useRef(null);
+
+  // Mileage deduction — Schedule C Line 9. Loaded once per session
+  // view, scoped to the current tax year. Surfaced both on-screen
+  // and inside the exported PDF.
+  var [mileage, setMileage] = useState({ miles: 0, deduction: 0, count: 0, rate: 0.70, year: new Date().getFullYear() });
+
   useEffect(function() { load(); }, [sessionId]);
   var load = async function() {
     var all = await getSessions();
     setSession(all.find(function(x) { return x.id === sessionId; }) || null);
+    // Load the mileage for this session's tax year. Treat the
+    // session as a single-year artifact for now; multi-year sessions
+    // would need year-bucketing, which we can add when we have a
+    // user who needs it.
+    try {
+      var st = await getMileageState();
+      var year = new Date().getFullYear(); // matches taxYear used below
+      var yearEntries = entriesForYear(st.entries, year);
+      setMileage({
+        miles: totalMiles(yearEntries),
+        deduction: totalDeduction(yearEntries, st.ratePerMile),
+        count: yearEntries.length,
+        rate: st.ratePerMile,
+        year: year,
+      });
+    } catch (e) { /* non-fatal */ }
+  };
+
+  // Gate helper. Pattern: every export function wraps its real body
+  // in a check via this. If unlocked, run immediately. If not, stash
+  // a re-run callback in pendingExport and open the paywall.
+  var withUnlock = async function(action) {
+    var unlocked = await isUnlocked();
+    if (unlocked) { action(); return; }
+    pendingExport.current = action;
+    setPaywallOpen(true);
+  };
+
+  var onPaywallUnlocked = function() {
+    setPaywallOpen(false);
+    var fn = pendingExport.current;
+    pendingExport.current = null;
+    // Brief defer so the modal animation finishes before the share
+    // sheet is presented (otherwise iOS occasionally swallows the
+    // share sheet because two modals try to mount in the same tick).
+    if (fn) setTimeout(fn, 250);
+  };
+
+  var onPaywallCancel = function() {
+    setPaywallOpen(false);
+    pendingExport.current = null;
   };
 
   if (!session) return null;
@@ -171,6 +226,21 @@ export default function SummaryScreen({ navigation, route }) {
       + '<div class="ex-row">' + tr('summary.pdfPersonalIncome', { amount: fmt(exInc), count: t.filter(function(x) { return x.type === 'credit' && !x.isBusiness; }).length }) + '</div>'
       + '<div class="ex-row">' + tr('summary.pdfPersonalExpenses', { amount: fmt(exExp), count: t.filter(function(x) { return x.type === 'debit' && !x.isBusiness; }).length }) + '</div>'
       + '</div>'
+
+      // Mileage — Schedule C Line 9. Only render if the user actually
+      // logged trips this year; an empty section in the PDF would
+      // just be noise.
+      + (mileage.count > 0 ? (
+          '<div class="sec">' + tr('summary.mileageSectionTitle') + '</div>'
+          + '<div class="ex">'
+          + '<div class="ex-row" style="font-size:13px;color:#111;font-weight:600">'
+          + tr('summary.mileageLine', { miles: String(mileage.miles), rate: mileage.rate.toFixed(3), deduction: fmt(mileage.deduction) })
+          + '</div>'
+          + '<div class="ex-row" style="margin-top:6px">'
+          + tr('summary.mileageNote', { count: mileage.count, year: mileage.year })
+          + '</div>'
+          + '</div>'
+        ) : '')
 
       // Schedule C-ready category breakdown
       + (incGroups.length > 0 ? (
@@ -305,15 +375,47 @@ export default function SummaryScreen({ navigation, route }) {
           <View style={s.exRow}><Text style={s.exLabel}>{tr('summary.expensesRemoved')}</Text><Text style={s.exVal}>{fmt(exExp)}</Text></View>
         </View>
 
+        {/* Mileage callout — only shown when the user has logged trips
+            for this tax year. The on-screen card mirrors the PDF
+            section so what the user sees is what they export. */}
+        {mileage.count > 0 && (
+          <View style={s.mileageCard}>
+            <Text style={s.mileageTitle}>{tr('summary.mileageSectionTitle')}</Text>
+            <Text style={s.mileageLine}>
+              {tr('summary.mileageLine', {
+                miles: String(mileage.miles),
+                rate: mileage.rate.toFixed(3),
+                deduction: fmt(mileage.deduction),
+              })}
+            </Text>
+            <Text style={s.mileageNote}>
+              {tr('summary.mileageNote', { count: mileage.count, year: mileage.year })}
+            </Text>
+          </View>
+        )}
+
         <View style={s.exportRow}>
-          <TouchableOpacity style={s.pdfBtn} onPress={exportPDF}><Text style={[s.exportTxt, { color: colors.accentText }]}>{tr('summary.exportPdf')}</Text></TouchableOpacity>
-          <TouchableOpacity style={s.csvBtn} onPress={exportCSV}><Text style={[s.exportTxt, { color: colors.strongBtnText }]}>{tr('summary.exportCsv')}</Text></TouchableOpacity>
+          <TouchableOpacity style={s.pdfBtn} onPress={function() { withUnlock(exportPDF); }}>
+            <Text style={[s.exportTxt, { color: colors.accentText }]}>{tr('summary.exportPdf')}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={s.csvBtn} onPress={function() { withUnlock(exportCSV); }}>
+            <Text style={[s.exportTxt, { color: colors.strongBtnText }]}>{tr('summary.exportCsv')}</Text>
+          </TouchableOpacity>
         </View>
 
         {session.status !== 'done' && (
           <TouchableOpacity style={s.doneBtn} onPress={markDone}><Text style={[s.exportTxt, { color: colors.accentText }]}>{tr('summary.markDone')}</Text></TouchableOpacity>
         )}
       </ScrollView>
+
+      {/* One-time IAP paywall — gates both export buttons. After a
+          successful purchase / restore, the pending export re-fires
+          automatically so the user doesn't have to tap again. */}
+      <Paywall
+        visible={paywallOpen}
+        onUnlocked={onPaywallUnlocked}
+        onCancel={onPaywallCancel}
+      />
     </SafeAreaView>
   );
 }
@@ -342,6 +444,10 @@ var s = StyleSheet.create({
   exRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
   exLabel: { fontSize: 13, color: colors.textSecondary },
   exVal: { fontSize: 13, fontWeight: '600', color: colors.textSecondary },
+  mileageCard: { backgroundColor: colors.incomeBg, borderRadius: 8, padding: 12, marginBottom: 16, borderWidth: 1, borderColor: colors.incomeBorder },
+  mileageTitle: { fontSize: 10, color: colors.incomeLabel, textTransform: 'uppercase', letterSpacing: 1, fontWeight: '700', marginBottom: 6 },
+  mileageLine: { fontSize: 14, color: colors.textPrimary, fontWeight: '700' },
+  mileageNote: { fontSize: 11, color: colors.textSecondary, marginTop: 4, lineHeight: 15 },
   exportRow: { flexDirection: 'row', marginBottom: 8 },
   pdfBtn: { flex: 1, backgroundColor: colors.accent, borderRadius: 8, padding: 14, alignItems: 'center', marginRight: 4 },
   csvBtn: { flex: 1, backgroundColor: colors.strongBtn, borderRadius: 8, padding: 14, alignItems: 'center', marginLeft: 4 },

@@ -7,6 +7,7 @@ import ImportScreen from './src/screens/ImportScreen';
 import ReviewScreen from './src/screens/ReviewScreen';
 import SummaryScreen from './src/screens/SummaryScreen';
 import BackupScreen from './src/screens/BackupScreen';
+import MileageScreen from './src/screens/MileageScreen';
 import OnboardingScreen, { hasSeenOnboarding } from './src/screens/OnboardingScreen';
 import ErrorBoundary from './src/components/ErrorBoundary';
 import { colors } from './src/theme';
@@ -23,6 +24,7 @@ function MainApp() {
         <Stack.Screen name="Review" component={ReviewScreen} options={{ title: t('nav.review') }} />
         <Stack.Screen name="Summary" component={SummaryScreen} options={{ title: t('nav.summary') }} />
         <Stack.Screen name="Backup" component={BackupScreen} options={{ title: t('nav.backup') }} />
+        <Stack.Screen name="Mileage" component={MileageScreen} options={{ title: t('nav.mileage') }} />
       </Stack.Navigator>
     </NavigationContainer>
   );

@@ -447,16 +447,28 @@ export function parseFile(content, filename = '') {
 }
 
 // ─── HELPERS ────────────────────────────────────────────────────
+//
+// Description normalization. Bank statements include verbose,
+// inconsistent strings for what are conceptually the same kind of
+// transaction (Zelle inflow, Venmo cash-out, ATM withdrawal at
+// Walgreens). We collapse the verbose forms into short Spanish
+// phrases so the user sees clean, scannable descriptions in the
+// Review screen — and so the merchantKey()-derived rules engine
+// can produce stable keys for those normalized forms.
+//
+// We match on the English source-side patterns (which is what the
+// bank actually writes) but emit Spanish strings on the right-hand
+// side via t().
 function cleanDescription(desc) {
   return desc
     .replace(/\s+/g, ' ')
-    .replace(/Zelle money received from/i, 'Zelle from')
-    .replace(/Zelle money sent to/i, 'Zelle to')
-    .replace(/Instant transfer received from VENMO - \w+/i, 'Venmo transfer received')
-    .replace(/Deposit from VENMO CASHOUT/i, 'Deposit from VENMO CASHOUT')
-    .replace(/Withdrawal from PAYPAL to .+ INST XFER.*/i, 'PayPal withdrawal')
+    .replace(/Zelle money received from/i, t('parser.clean.zelleFrom'))
+    .replace(/Zelle money sent to/i, t('parser.clean.zelleTo'))
+    .replace(/Instant transfer received from VENMO - \w+/i, t('parser.clean.venmoTransferIn'))
+    .replace(/Deposit from VENMO CASHOUT/i, t('parser.clean.venmoCashout'))
+    .replace(/Withdrawal from PAYPAL to .+ INST XFER.*/i, t('parser.clean.paypalWithdrawal'))
     .replace(/Debit Card Purchase - /i, '')
-    .replace(/ATM Withdrawal - WALGREENS # -X00 AX\d+ /i, 'ATM Withdrawal - Walgreens, ')
+    .replace(/ATM Withdrawal - WALGREENS # -X00 AX\d+ /i, t('parser.clean.atmWalgreens'))
     .trim();
 }
 

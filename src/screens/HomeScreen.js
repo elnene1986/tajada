@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, StatusBar, ScrollView, Alert 
 import { useFocusEffect } from '@react-navigation/native';
 import { getSessions, deleteSession } from '../utils/storage';
 import { readBackupMeta, daysSince } from '../utils/backupMeta';
+import { getMileageState, totalMiles, totalDeduction, entriesForYear } from '../utils/mileage';
 import { colors } from '../theme';
 import brand from '../brand';
 import BrandLogo from '../components/BrandLogo';
@@ -23,14 +24,33 @@ export default function HomeScreen({ navigation }) {
   var [sessions, setSessions] = useState([]);
   var [editing, setEditing] = useState(false);
   var [backupMeta, setBackupMeta] = useState({ lastBackupAt: null });
+  var [mileageSummary, setMileageSummary] = useState({ miles: 0, deduction: 0, count: 0 });
 
   useFocusEffect(useCallback(function() {
     getSessions().then(setSessions);
     readBackupMeta().then(setBackupMeta);
+    // Load the current year's mileage summary so the Home pill can
+    // show a live "120 mi · $84.00" hint instead of just a label.
+    (async function() {
+      try {
+        var st = await getMileageState();
+        var thisYear = new Date().getFullYear();
+        var yearEntries = entriesForYear(st.entries, thisYear);
+        setMileageSummary({
+          miles: totalMiles(yearEntries),
+          deduction: totalDeduction(yearEntries, st.ratePerMile),
+          count: yearEntries.length,
+        });
+      } catch (e) { /* non-fatal */ }
+    })();
     setEditing(false);
   }, []));
 
   var freshness = backupFreshness(backupMeta.lastBackupAt);
+
+  // Format a money number consistently with the rest of Home.
+  var fmtMoney = function(n) { return '$' + Number(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); };
+  var fmtMiles = function(n) { return n === Math.floor(n) ? String(n) : n.toFixed(1); };
 
   var confirmDelete = function(session) {
     Alert.alert(
@@ -81,15 +101,24 @@ export default function HomeScreen({ navigation }) {
         <Text style={s.privacyText}>{t('home.privacy')}</Text>
       </View>
 
-      {/* Backup affordance — sits next to the privacy badge because the
-          two ideas are linked: "your data stays on your phone" needs
-          "and here's how to not lose it if you drop the phone".
-          The freshness line shifts color when the backup is stale
-          (>=14 days) so the nudge is visible without being loud. */}
-      <TouchableOpacity style={s.backupLink} onPress={function() { navigation.navigate('Backup'); }}>
-        <Text style={s.backupLinkText}>{t('home.backupLink')}</Text>
-        <Text style={[s.backupFresh, freshness.stale && s.backupFreshStale]}>{freshness.label}</Text>
-      </TouchableOpacity>
+      {/* Secondary affordances — backup + mileage. Both are
+          per-creator-tax-prep tools that don't belong inside the
+          import flow but should be one tap from Home. Side-by-side
+          pills so they don't dominate the layout. */}
+      <View style={s.secondaryRow}>
+        <TouchableOpacity style={s.secondaryPill} onPress={function() { navigation.navigate('Mileage'); }}>
+          <Text style={s.secondaryPillTitle}>{t('home.mileageLink')}</Text>
+          <Text style={s.secondaryPillSub}>
+            {mileageSummary.count === 0
+              ? t('home.mileageEmpty')
+              : t('home.mileageMiles', { miles: fmtMiles(mileageSummary.miles), deduction: fmtMoney(mileageSummary.deduction) })}
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={s.secondaryPill} onPress={function() { navigation.navigate('Backup'); }}>
+          <Text style={s.secondaryPillTitle}>{t('home.backupLink')}</Text>
+          <Text style={[s.secondaryPillSub, freshness.stale && s.secondaryPillSubStale]}>{freshness.label}</Text>
+        </TouchableOpacity>
+      </View>
 
       {/* CTA */}
       <TouchableOpacity style={s.cta} onPress={function() { navigation.navigate('Import'); }}>
@@ -160,12 +189,13 @@ var s = StyleSheet.create({
   brand: { fontSize: 28, color: colors.heroText, letterSpacing: -0.8 },
   subBrand: { fontSize: 13, color: colors.heroTextMuted, marginTop: 2, letterSpacing: 0.3, fontStyle: 'italic' },
   tagline: { fontSize: 10, color: colors.heroTextLabel, marginTop: 6, letterSpacing: 1.5 },
-  privacyBadge: { backgroundColor: colors.heroChip, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 6, marginBottom: 8 },
+  privacyBadge: { backgroundColor: colors.heroChip, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 6, marginBottom: 12 },
   privacyText: { fontSize: 11, color: colors.heroTextFaint },
-  backupLink: { paddingVertical: 4, paddingHorizontal: 10, marginBottom: 16, alignItems: 'center' },
-  backupLinkText: { fontSize: 10, color: colors.heroTextLabel, fontWeight: '600', letterSpacing: 0.4 },
-  backupFresh: { fontSize: 9, color: colors.heroTextDim, marginTop: 2 },
-  backupFreshStale: { color: colors.warning, fontWeight: '600' },
+  secondaryRow: { flexDirection: 'row', marginBottom: 16, width: '100%', paddingHorizontal: 4 },
+  secondaryPill: { flex: 1, backgroundColor: colors.heroChip, borderRadius: 10, paddingVertical: 8, paddingHorizontal: 10, marginHorizontal: 4, alignItems: 'center' },
+  secondaryPillTitle: { fontSize: 10, color: colors.heroTextLabel, fontWeight: '700', letterSpacing: 0.5, textTransform: 'uppercase' },
+  secondaryPillSub: { fontSize: 10, color: colors.heroTextDim, marginTop: 2 },
+  secondaryPillSubStale: { color: colors.warning, fontWeight: '700' },
   cta: { backgroundColor: colors.accent, borderRadius: 12, padding: 16, alignItems: 'center', width: '100%' },
   ctaTitle: { fontSize: 15, fontWeight: '600', color: colors.accentText },
   ctaSub: { fontSize: 11, color: colors.heroCtaSub, marginTop: 4 },
