@@ -1,0 +1,58 @@
+import React, { useState, useEffect } from 'react';
+import { View, ActivityIndicator } from 'react-native';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import HomeScreen from './src/screens/HomeScreen';
+import ImportScreen from './src/screens/ImportScreen';
+import ReviewScreen from './src/screens/ReviewScreen';
+import SummaryScreen from './src/screens/SummaryScreen';
+import BackupScreen from './src/screens/BackupScreen';
+import OnboardingScreen, { hasSeenOnboarding } from './src/screens/OnboardingScreen';
+import ErrorBoundary from './src/components/ErrorBoundary';
+import { colors } from './src/theme';
+import { t } from './src/i18n';
+
+var Stack = createNativeStackNavigator();
+
+function MainApp() {
+  return (
+    <NavigationContainer>
+      <Stack.Navigator initialRouteName="Home">
+        <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
+        <Stack.Screen name="Import" component={ImportScreen} options={{ title: t('nav.import') }} />
+        <Stack.Screen name="Review" component={ReviewScreen} options={{ title: t('nav.review') }} />
+        <Stack.Screen name="Summary" component={SummaryScreen} options={{ title: t('nav.summary') }} />
+        <Stack.Screen name="Backup" component={BackupScreen} options={{ title: t('nav.backup') }} />
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
+}
+
+export default function App() {
+  var [loading, setLoading] = useState(true);
+  var [showOnboarding, setShowOnboarding] = useState(false);
+
+  useEffect(function() {
+    hasSeenOnboarding().then(function(seen) {
+      setShowOnboarding(!seen);
+      setLoading(false);
+    });
+  }, []);
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.heroBg, alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator size="large" color={colors.accent} />
+      </View>
+    );
+  }
+
+  return (
+    <ErrorBoundary>
+      {showOnboarding
+        ? <OnboardingScreen onDone={function() { setShowOnboarding(false); }} />
+        : <MainApp />
+      }
+    </ErrorBoundary>
+  );
+}
