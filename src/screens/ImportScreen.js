@@ -5,18 +5,22 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { parseFile, formatLabel, sourceLabel } from '../parsers';
 import { saveSession } from '../utils/storage';
 import { getRules, applyRules } from '../utils/rules';
+import { suggestForTransactions } from '../utils/categorizer';
+import { fmtCents } from '../utils/money';
 import { colors } from '../theme';
 import { t } from '../i18n';
 
 function uid() { return 'xxxx-xxxx-xxxx'.replace(/x/g, function() { return ((Math.random()*16)|0).toString(16); }); }
-function fmt(n) { return '$' + Math.abs(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+// Money formatter — takes integer cents.
+var fmt = fmtCents;
 
-// Helper: income / expense totals for a transaction list.
+// Helper: income / expense totals (in cents) for a transaction list.
+// Integer addition — no float drift across hundreds of imported rows.
 function totalsFor(transactions) {
   var inc = 0, exp = 0;
   for (var i = 0; i < transactions.length; i++) {
     var t = transactions[i];
-    if (t.type === 'credit') inc += t.amount; else exp += t.amount;
+    if (t.type === 'credit') inc += t.amountCents; else exp += t.amountCents;
   }
   return { income: inc, expenses: exp };
 }
@@ -90,6 +94,10 @@ export default function ImportScreen({ navigation, route }) {
           var content = await FileSystem.readAsStringAsync(file.uri, { encoding: FileSystem.EncodingType.UTF8 });
           var parseResult = parseFile(content, file.name);
           var ruleResult = applyRules(parseResult.transactions, rules);
+          // Deterministic category suggestions for expenses no rule
+          // covered — pre-fills the Review modal's category picker.
+          var suggested = suggestForTransactions(ruleResult.transactions);
+          ruleResult = { transactions: suggested.transactions, appliedCount: ruleResult.appliedCount };
           var tot = totalsFor(ruleResult.transactions);
           newFiles.push({
             id: uid(),
@@ -144,7 +152,7 @@ export default function ImportScreen({ navigation, route }) {
       if (f.transactions.length === 0) return;
       if (sources.indexOf(f.source) === -1) sources.push(f.source);
       f.transactions.forEach(function(t) {
-        var key = t.date + '|' + t.amount + '|' + t.description.toLowerCase();
+        var key = t.date + '|' + t.amountCents + '|' + t.description.toLowerCase();
         if (!seenKeys.has(key)) {
           seenKeys.add(key);
           allTxns.push(t);
@@ -189,10 +197,12 @@ export default function ImportScreen({ navigation, route }) {
       <Text style={s.subtitle}>{t('import.subtitle')}</Text>
 
       {/* Upload button */}
-      <TouchableOpacity style={s.dropZone} onPress={pickFiles}>
+      <TouchableOpacity style={s.dropZone} onPress={pickFiles} activeOpacity={0.85}>
         {loading ? <ActivityIndicator size="large" color={colors.accent} /> : (
           <>
-            <Text style={s.dropIcon}>+</Text>
+            <View style={s.dropIconCircle}>
+              <Text style={s.dropIcon}>+</Text>
+            </View>
             <Text style={s.dropTitle}>{files.length === 0 ? t('import.dropEmpty') : t('import.dropMore')}</Text>
             <Text style={s.dropSub}>{t('import.dropSub')}</Text>
           </>
@@ -202,6 +212,25 @@ export default function ImportScreen({ navigation, route }) {
       {errorMsg ? (
         <View style={s.errorBox}><Text style={s.errorText}>{errorMsg}</Text></View>
       ) : null}
+
+      {/* Empty-state helper — fills the page until the first file lands:
+          which sources work, and the privacy promise pinned at the bottom. */}
+      {files.length === 0 && !loading && (
+        <View style={s.helper}>
+          <Text style={s.sourcesLabel}>{t('import.sourcesLabel')}</Text>
+          <View style={s.chipWrap}>
+            {['Chase', 'Bank of America', 'Capital One', 'Stripe', 'PayPal', 'Venmo', 'Patreon', 'Substack'].map(function(name) {
+              return (
+                <View key={name} style={s.sourceChip}>
+                  <Text style={s.sourceChipTxt}>{name}</Text>
+                </View>
+              );
+            })}
+          </View>
+          <View style={{ flex: 1 }} />
+          <Text style={s.privacyNote}>{t('import.privacyNote')}</Text>
+        </View>
+      )}
 
       {/* File list */}
       {files.length > 0 && (
@@ -282,13 +311,35 @@ export default function ImportScreen({ navigation, route }) {
 }
 
 var s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.screenBg, paddingHorizontal: 20, paddingTop: 16 },
-  title: { fontSize: 22, fontWeight: '600', color: colors.textPrimary },
-  subtitle: { fontSize: 13, color: colors.textFaint, marginTop: 4, marginBottom: 20 },
-  dropZone: { borderWidth: 2, borderStyle: 'dashed', borderColor: colors.accentSoft, borderRadius: 16, padding: 24, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
-  dropIcon: { fontSize: 28, color: colors.accent, fontWeight: '300', marginBottom: 4 },
-  dropTitle: { fontSize: 15, fontWeight: '600', color: colors.textPrimary },
-  dropSub: { fontSize: 11, color: colors.textFaint, marginTop: 4 },
+  container: { flex: 1, backgroundColor: colors.screenBg, paddingHorizontal: 20, paddingTop: 12 },
+  title: { fontSize: 24, fontWeight: '700', color: colors.textPrimary, letterSpacing: -0.4 },
+  subtitle: { fontSize: 13, color: colors.textFaint, marginTop: 4, marginBottom: 24 },
+  dropZone: {
+    backgroundColor: colors.card,
+    borderRadius: 18,
+    paddingVertical: 36,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    shadowColor: colors.textPrimary,
+    shadowOpacity: 0.07,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 3,
+  },
+  dropIconCircle: { width: 54, height: 54, borderRadius: 27, backgroundColor: colors.incomeBg, alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
+  dropIcon: { fontSize: 28, color: colors.accent, fontWeight: '300', marginTop: -2 },
+  dropTitle: { fontSize: 16, fontWeight: '600', color: colors.textPrimary },
+  dropSub: { fontSize: 12, color: colors.textFaint, marginTop: 5 },
+  helper: { flex: 1, paddingBottom: 28 },
+  sourcesLabel: { fontSize: 10, color: colors.textFaint, letterSpacing: 1.5, textTransform: 'uppercase', textAlign: 'center', marginTop: 8, marginBottom: 12 },
+  chipWrap: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center' },
+  sourceChip: { backgroundColor: colors.chipBg, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 6, margin: 4 },
+  sourceChipTxt: { fontSize: 11, color: colors.textSecondary, fontWeight: '500' },
+  privacyNote: { fontSize: 11, color: colors.textFaint, textAlign: 'center', lineHeight: 17, paddingHorizontal: 24 },
   errorBox: { backgroundColor: colors.expenseBg, borderRadius: 8, padding: 12, marginBottom: 16, borderWidth: 1, borderColor: colors.expenseBorder },
   errorText: { fontSize: 12, color: colors.expenseLabel },
   fileList: { marginBottom: 16 },

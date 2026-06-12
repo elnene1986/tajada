@@ -24,6 +24,7 @@
 //     "I sold this phone" flow, if we add one).
 
 import * as FileSystem from 'expo-file-system/legacy';
+import { writeAtomic } from './fsAtomic';
 
 var UNLOCK_FILE = FileSystem.documentDirectory + 'tajada_unlock.json';
 
@@ -67,7 +68,7 @@ export async function recordPurchase(purchase, source) {
     transactionId: (purchase && purchase.transactionId) || null,
     source: source || 'purchase',
   };
-  await FileSystem.writeAsStringAsync(UNLOCK_FILE, JSON.stringify(state));
+  await writeAtomic(UNLOCK_FILE, JSON.stringify(state));
   return state;
 }
 

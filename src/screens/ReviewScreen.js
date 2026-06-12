@@ -5,12 +5,17 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { getSessions, saveSession } from '../utils/storage';
 import { parseFile, sourceLabel } from '../parsers';
 import { merchantKey, saveRule, getRules, applyRules } from '../utils/rules';
+import { suggestForTransactions } from '../utils/categorizer';
 import { categoriesForType, defaultCategoryKey, categoryLabel } from '../utils/categories';
+import { fmtCents, fmtCentsK } from '../utils/money';
 import { colors } from '../theme';
 import { t } from '../i18n';
 
-function fmt(n) { return '$' + Math.abs(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
-function fmtK(n) { return Math.abs(n) >= 1000 ? '$' + (Math.abs(n)/1000).toFixed(1) + 'k' : fmt(n); }
+// Money formatters take integer cents — see src/utils/money.js. Local
+// aliases so the existing fmt(...) / fmtK(...) call sites need no
+// renaming, only the input field changes from .amount → .amountCents.
+var fmt = fmtCents;
+var fmtK = fmtCentsK;
 function pd(d) { var p = d.split('/'); return new Date(2000+parseInt(p[2]||'25'), parseInt(p[0])-1, parseInt(p[1])); }
 function uid() { return 'xxxx-xxxx-xxxx'.replace(/x/g, function() { return ((Math.random()*16)|0).toString(16); }); }
 
@@ -95,11 +100,14 @@ export default function ReviewScreen({ navigation, route }) {
       // rows unclassified again.
       var rules = await getRules();
       var applied = applyRules(parseResult.transactions, rules);
+      // Category suggestions for expenses no rule covered — same pass
+      // ImportScreen runs, so merged files behave identically.
+      applied = { transactions: suggestForTransactions(applied.transactions).transactions };
 
       // Check for duplicates by matching date + amount + description
-      var existingKeys = new Set(txns.map(function(t) { return t.date + '|' + t.amount + '|' + t.description.toLowerCase(); }));
+      var existingKeys = new Set(txns.map(function(t) { return t.date + '|' + t.amountCents + '|' + t.description.toLowerCase(); }));
       var newTxns = applied.transactions.filter(function(t) {
-        var key = t.date + '|' + t.amount + '|' + t.description.toLowerCase();
+        var key = t.date + '|' + t.amountCents + '|' + t.description.toLowerCase();
         return !existingKeys.has(key);
       });
       // Count post-dedupe auto-classified rows for the toast message.
@@ -153,7 +161,7 @@ export default function ReviewScreen({ navigation, route }) {
       if (!st.has(t.id)) return t;
       return Object.assign({}, t, {
         isBusiness: val,
-        category: val ? (cat || t.category || defaultCategoryKey(t.type)) : null,
+        category: val ? (cat || t.category || t.suggestedCategory || defaultCategoryKey(t.type)) : null,
         ruleApplied: false,
       });
     });
@@ -163,7 +171,8 @@ export default function ReviewScreen({ navigation, route }) {
   var toggle = function(t) {
     var nv = !t.isBusiness;
     var sim = getSimilar(t);
-    var defaultCat = nv ? (t.category || defaultCategoryKey(t.type)) : null;
+    // Priority: explicit category > import-time suggestion > type default.
+    var defaultCat = nv ? (t.category || t.suggestedCategory || defaultCategoryKey(t.type)) : null;
     if (sim.length > 0) {
       setModal({ txn: t, count: sim.length, nv: nv, category: defaultCat });
     } else {
@@ -204,8 +213,8 @@ export default function ReviewScreen({ navigation, route }) {
     return r.sort(function(a,b) { return pd(b.date) - pd(a.date); });
   }, [list, search]);
 
-  var bizInc = inc.filter(function(t) { return t.isBusiness; }).reduce(function(s,t) { return s+t.amount; }, 0);
-  var bizExp = exp.filter(function(t) { return t.isBusiness; }).reduce(function(s,t) { return s+t.amount; }, 0);
+  var bizInc = inc.filter(function(t) { return t.isBusiness; }).reduce(function(s,t) { return s+t.amountCents; }, 0);
+  var bizExp = exp.filter(function(t) { return t.isBusiness; }).reduce(function(s,t) { return s+t.amountCents; }, 0);
 
   // Get unique sources for badges
   var sources = [];
@@ -277,7 +286,7 @@ export default function ReviewScreen({ navigation, route }) {
                   )}
                 </View>
               </View>
-              <Text style={[s.txnAmt, { color: item.isBusiness ? (tab==='income' ? colors.incomeStrong : colors.expenseTabStrong) : colors.excludedCheck }]}>{fmt(item.amount)}</Text>
+              <Text style={[s.txnAmt, { color: item.isBusiness ? (tab==='income' ? colors.incomeStrong : colors.expenseTabStrong) : colors.excludedCheck }]}>{fmt(item.amountCents)}</Text>
             </TouchableOpacity>
           );
         }}
@@ -309,6 +318,16 @@ export default function ReviewScreen({ navigation, route }) {
             {modal && modal.nv && (
               <View style={s.catSection}>
                 <Text style={s.catLabel}>{t('review.category')}</Text>
+                {/* Suggestion provenance — shown while the pre-selected
+                    chip is still the import-time suggestion; disappears
+                    as soon as the user picks a different one. */}
+                {modal.txn.suggestedCategory
+                  && !modal.txn.category
+                  && modal.category === modal.txn.suggestedCategory && (
+                  <Text style={s.catSuggestHint}>
+                    {t('review.suggestedHint', { reason: modal.txn.suggestedReason || '' })}
+                  </Text>
+                )}
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.catRow}>
                   {categoriesForType(modal.txn.type).map(function(c) {
                     var active = modal.category === c.key;
@@ -379,6 +398,7 @@ var s = StyleSheet.create({
   ruleBadgeTxt: { fontSize: 8, fontWeight: '700', color: colors.ruleText, textTransform: 'uppercase', letterSpacing: 0.3 },
   catSection: { marginBottom: 16 },
   catLabel: { fontSize: 11, color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8, fontWeight: '600' },
+  catSuggestHint: { fontSize: 11, color: colors.ruleText, backgroundColor: colors.ruleBg, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4, marginBottom: 8, overflow: 'hidden', alignSelf: 'flex-start' },
   catRow: { paddingRight: 8 },
   catChip: { backgroundColor: colors.chipBg, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 8, marginRight: 6, borderWidth: 1, borderColor: colors.cardBorder },
   catChipActive: { backgroundColor: colors.infoBg, borderColor: colors.accent },

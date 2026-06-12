@@ -53,8 +53,19 @@ export async function getProvider() {
   return _provider;
 }
 
-// Force-reset for development / testing.
-export function resetProviderForTesting() { _provider = null; }
+// Tear down the cached provider so the next call to getProvider()
+// re-runs the try-real-then-fall-back-to-stub sequence. Used by:
+//   - The Paywall "Reintentar" button, when the real provider failed
+//     to init (e.g. network outage at modal open) and the user wants
+//     to try again without closing the modal.
+//   - Tests, when a fixture wants to start from a clean slate.
+// Named without the "ForTesting" suffix because the production retry
+// path also uses it.
+export function resetProvider() { _provider = null; }
+
+// Back-compat alias — older code may still import the testing-named
+// version. Safe to delete once nothing references it.
+export var resetProviderForTesting = resetProvider;
 
 async function tryLoadReal() {
   var RNIap;

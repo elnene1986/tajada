@@ -19,8 +19,25 @@ module.exports = {
       bundleIdentifier: 'com.tajada.app',
       buildNumber: '1',
       infoPlist: {
-        NSPhotoLibraryUsageDescription: 'Tajada necesita acceso para seleccionar fotos de recibos.',
+        // Justified usage strings — only declared for permissions the
+        // app actually exercises. Apple Guideline 5.1.1 rejects builds
+        // that declare permissions without using them. Receipt photos
+        // are a future feature (see CLAUDE.md Phase 7); re-add
+        // NSPhotoLibraryUsageDescription when expo-image-picker is wired.
         NSDocumentsFolderUsageDescription: 'Tajada necesita acceso para leer tus archivos de estados de cuenta.',
+
+        // App-wide encryption declaration. Tajada uses AES-256-GCM for
+        // the optional encrypted backup feature — that data stays on
+        // the user's device or wherever the user chooses to put the
+        // backup file (iCloud Drive, AirDrop, etc.). It is not
+        // transmitted over the network from this app. This qualifies
+        // for the "limited cryptography" exemption under BIS 740.17(b)
+        // (only encrypting user data at rest, using standard
+        // algorithms). Declaring `false` here lets every TestFlight /
+        // App Store build pass the encryption compliance check
+        // automatically instead of having to answer the questionnaire
+        // by hand for each submission.
+        ITSAppUsesNonExemptEncryption: false,
       },
     },
     android: {

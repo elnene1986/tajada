@@ -9,6 +9,7 @@
 // state for the UI.
 
 import * as FileSystem from 'expo-file-system/legacy';
+import { writeAtomic } from './fsAtomic';
 
 var META_FILE = FileSystem.documentDirectory + 'tajada_backup_meta.json';
 
@@ -29,7 +30,7 @@ export async function readBackupMeta() {
 export async function recordBackupSuccess() {
   var meta = { lastBackupAt: new Date().toISOString() };
   try {
-    await FileSystem.writeAsStringAsync(META_FILE, JSON.stringify(meta));
+    await writeAtomic(META_FILE, JSON.stringify(meta));
   } catch (e) { /* non-fatal; UI just won't get the freshness hint */ }
   return meta;
 }

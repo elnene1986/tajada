@@ -9,6 +9,7 @@
 // This stays on-device — same privacy posture as sessions.
 
 import * as FileSystem from 'expo-file-system/legacy';
+import { writeAtomic } from './fsAtomic';
 
 // Tajada-branded rules path. Pre-rebrand installs wrote to the
 // SplitLedger-era filename; migrateLegacyRules() below quietly moves
@@ -64,7 +65,7 @@ export async function getRules() {
 }
 
 async function writeRules(rules) {
-  await FileSystem.writeAsStringAsync(RULES_FILE, JSON.stringify(rules));
+  await writeAtomic(RULES_FILE, JSON.stringify(rules));
 }
 
 // ─── Bulk replace (used by the restore-from-backup flow) ──────────

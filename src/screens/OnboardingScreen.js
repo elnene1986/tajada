@@ -5,15 +5,24 @@ import { seedRules } from '../utils/rules';
 import { seedsForSelections } from '../utils/platformSeeds';
 import { colors } from '../theme';
 import brand from '../brand';
+import BrandLogo from '../components/BrandLogo';
 import { t } from '../i18n';
 
 var width = Dimensions.get('window').width;
 
-// Creator-tailored intro slides. The fourth slide is interactive —
-// it both explains the feature (platform-aware merchant rules) and
-// gathers the data we need to seed those rules. Keeps the user in
-// one continuous flow instead of bouncing out to a settings screen.
+// Creator-tailored intro slides. Slide 0 is a warm empathy hook — no
+// interaction, just the personal "I built this because I know the pain"
+// note that mirrors the landing page voice. Slides 1–3 are the
+// functional walkthrough. The fifth slide is interactive — it both
+// explains the feature (platform-aware merchant rules) and gathers the
+// data we need to seed those rules. Keeps the user in one continuous
+// flow instead of bouncing out to a settings screen.
 var slides = [
+  {
+    title: t('onboarding.introTitle'),
+    sub: t('onboarding.introSub', { brand: brand.displayName }),
+    graphic: 'welcome',
+  },
   {
     title: t('onboarding.slide1Title'),
     sub: t('onboarding.slide1Sub', { brand: brand.displayName }),
@@ -60,26 +69,39 @@ var PLATFORM_OPTIONS = [
 ];
 
 // NOTE: the Graphic components below are bespoke marketing illustrations
-// (mock file badges, the toggle demo, the mini PDF preview). Their inline
-// fill colors are intentionally left as literal hex — they are decorative,
-// not UI chrome, and the onboarding illustrations should be redesigned for
-// the Tajada brand rather than mechanically recolored. The screen chrome
-// (the `s` and `g` StyleSheets) IS tokenized.
+// (mock file badges, the toggle demo, the mini PDF preview). All fills are
+// brand tokens — saffron family for income/business, brick/sienna family
+// for expenses, warm greys for excluded — matching the working screens.
 function Graphic({ type, selections, toggleSelection }) {
+  if (type === 'welcome') {
+    // The first slide carries the emotional hook ("Sé lo estresante que es…").
+    // The illustration should be calm and branded — the visual opposite of
+    // tax-season anxiety. The Tajada folded-corner mark anchors it, with a
+    // thin saffron rule and a small "PARA CREADORES" badge below for context.
+    return (
+      <View style={g.welcomeBox}>
+        <BrandLogo size={92} style={g.welcomeMark} />
+        <View style={g.welcomeRule} />
+        <View style={g.welcomeBadge}>
+          <Text style={g.welcomeBadgeTxt}>{t('onboarding.introBadge')}</Text>
+        </View>
+      </View>
+    );
+  }
   if (type === 'upload') {
     return (
       <View style={g.box}>
         <View style={g.card}>
-          <View style={[g.filePill, { backgroundColor: '#DCFCE7' }]}><Text style={[g.fileLabel, { color: '#16A34A' }]}>CSV</Text></View>
-          <Text style={g.fileName}>Patreon_Payouts.csv</Text>
+          <View style={[g.filePill, { backgroundColor: colors.incomeBg }]}><Text style={[g.fileLabel, { color: colors.incomeLabel }]}>CSV</Text></View>
+          <Text style={g.fileName}>Pagos_Patreon.csv</Text>
         </View>
         <View style={g.card}>
-          <View style={[g.filePill, { backgroundColor: '#E0F4FF' }]}><Text style={[g.fileLabel, { color: '#0284C7' }]}>CSV</Text></View>
+          <View style={[g.filePill, { backgroundColor: colors.chipBg }]}><Text style={[g.fileLabel, { color: colors.textSecondary }]}>CSV</Text></View>
           <Text style={g.fileName}>Stripe_2025.csv</Text>
         </View>
         <View style={g.card}>
-          <View style={[g.filePill, { backgroundColor: '#FFF7ED' }]}><Text style={[g.fileLabel, { color: '#EA580C' }]}>OFX</Text></View>
-          <Text style={g.fileName}>BankStatement.ofx</Text>
+          <View style={[g.filePill, { backgroundColor: colors.expenseTabBg }]}><Text style={[g.fileLabel, { color: colors.expenseTabStrong }]}>OFX</Text></View>
+          <Text style={g.fileName}>Banco_2025.ofx</Text>
         </View>
         <View style={g.arrow}><Text style={g.arrowTxt}>↓</Text></View>
         <View style={g.appBadge}>
@@ -98,27 +120,27 @@ function Graphic({ type, selections, toggleSelection }) {
     return (
       <View style={g.box}>
         <View style={g.txnRow}>
-          <View style={[g.check, { backgroundColor: '#22C55E' }]}><Text style={g.checkTxt}>✓</Text></View>
+          <View style={[g.check, { backgroundColor: colors.incomeCheck }]}><Text style={g.checkTxt}>✓</Text></View>
           <Text style={g.txnName}>Patreon Inc</Text>
           <View style={g.recBadge}><Text style={g.recTxt}>↻ 12x</Text></View>
-          <Text style={[g.txnAmt, { color: '#16A34A' }]}>$940</Text>
+          <Text style={[g.txnAmt, { color: colors.incomeDeep }]}>$940</Text>
         </View>
         <View style={g.txnRow}>
-          <View style={[g.check, { backgroundColor: '#EA580C' }]}><Text style={g.checkTxt}>✓</Text></View>
+          <View style={[g.check, { backgroundColor: colors.expenseTab }]}><Text style={g.checkTxt}>✓</Text></View>
           <Text style={g.txnName}>Adobe Creative Cloud</Text>
           <View style={g.recBadge}><Text style={g.recTxt}>↻ 12x</Text></View>
-          <Text style={[g.txnAmt, { color: '#C2410C' }]}>$54.99</Text>
+          <Text style={[g.txnAmt, { color: colors.expenseTabStrong }]}>$54.99</Text>
         </View>
-        <View style={[g.txnRow, { opacity: 0.4 }]}>
-          <View style={[g.check, { backgroundColor: '#BDBDBD' }]}><Text style={g.checkTxt}>✕</Text></View>
-          <Text style={[g.txnName, { textDecorationLine: 'line-through', color: '#999' }]}>Netflix</Text>
-          <Text style={[g.txnAmt, { color: '#BDBDBD' }]}>$17</Text>
+        <View style={[g.txnRow, { opacity: 0.45 }]}>
+          <View style={[g.check, { backgroundColor: colors.excludedCheck }]}><Text style={g.checkTxt}>✕</Text></View>
+          <Text style={[g.txnName, { textDecorationLine: 'line-through', color: colors.excludedText }]}>Netflix</Text>
+          <Text style={[g.txnAmt, { color: colors.excludedCheck }]}>$17</Text>
         </View>
         <View style={g.txnRow}>
-          <View style={[g.check, { backgroundColor: '#EA580C' }]}><Text style={g.checkTxt}>✓</Text></View>
+          <View style={[g.check, { backgroundColor: colors.expenseTab }]}><Text style={g.checkTxt}>✓</Text></View>
           <Text style={g.txnName}>Stripe Payments</Text>
           <View style={g.recBadge}><Text style={g.recTxt}>↻ 34x</Text></View>
-          <Text style={[g.txnAmt, { color: '#C2410C' }]}>$82</Text>
+          <Text style={[g.txnAmt, { color: colors.expenseTabStrong }]}>$82</Text>
         </View>
       </View>
     );
@@ -140,14 +162,14 @@ function Graphic({ type, selections, toggleSelection }) {
             </View>
           </View>
           <View style={g.pdfBody}>
-            <View style={g.pdfRow}><Text style={g.pdfLabel}>Platform Payouts</Text><Text style={[g.pdfVal, { color: '#059669' }]}>$18,420</Text></View>
-            <View style={g.pdfRow}><Text style={g.pdfLabel}>Platform Fees</Text><Text style={[g.pdfVal, { color: '#DC2626' }]}>$2,104</Text></View>
-            <View style={g.pdfRow}><Text style={g.pdfLabel}>Software & Subs</Text><Text style={[g.pdfVal, { color: '#DC2626' }]}>$1,284</Text></View>
-            <View style={g.pdfRow}><Text style={g.pdfLabel}>Equipment</Text><Text style={[g.pdfVal, { color: '#DC2626' }]}>$2,800</Text></View>
-            <View style={[g.pdfRow, { borderTopWidth: 1, borderTopColor: '#DDD', paddingTop: 6 }]}><Text style={[g.pdfLabel, { fontWeight: '700' }]}>Net profit</Text><Text style={[g.pdfVal, { color: '#2563EB', fontWeight: '700' }]}>$12,232</Text></View>
+            <View style={g.pdfRow}><Text style={g.pdfLabel}>Pagos de plataformas</Text><Text style={[g.pdfVal, { color: colors.incomeDeep }]}>$18,420</Text></View>
+            <View style={g.pdfRow}><Text style={g.pdfLabel}>Comisiones</Text><Text style={[g.pdfVal, { color: colors.expenseDeep }]}>$2,104</Text></View>
+            <View style={g.pdfRow}><Text style={g.pdfLabel}>Software y suscripciones</Text><Text style={[g.pdfVal, { color: colors.expenseDeep }]}>$1,284</Text></View>
+            <View style={g.pdfRow}><Text style={g.pdfLabel}>Equipo</Text><Text style={[g.pdfVal, { color: colors.expenseDeep }]}>$2,800</Text></View>
+            <View style={[g.pdfRow, { borderTopWidth: 1, borderTopColor: colors.cardBorder, paddingTop: 6 }]}><Text style={[g.pdfLabel, { fontWeight: '700' }]}>Ganancia neta</Text><Text style={[g.pdfVal, { color: colors.profitDeep, fontWeight: '700' }]}>$12,232</Text></View>
           </View>
         </View>
-        <Text style={g.pdfFileName}>{'Schedule C-ready · ' + brand.displayName + '_2025.pdf'}</Text>
+        <Text style={g.pdfFileName}>{'Listo para el Anexo C · ' + brand.displayName + '_2025.pdf'}</Text>
       </View>
     );
   }
@@ -174,6 +196,22 @@ function Graphic({ type, selections, toggleSelection }) {
 }
 
 var g = StyleSheet.create({
+  // Welcome / empathy slide — calm anchor visual.
+  welcomeBox: { alignItems: 'center', justifyContent: 'center', paddingVertical: 12 },
+  welcomeMark: { marginBottom: 24 },
+  welcomeRule: { width: 48, height: 2, backgroundColor: colors.accent, borderRadius: 1, marginBottom: 18 },
+  welcomeBadge: {
+    paddingHorizontal: 12, paddingVertical: 5,
+    borderRadius: 999,
+    backgroundColor: colors.heroChip,
+  },
+  welcomeBadgeTxt: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 1.4,
+    color: colors.heroTextMuted,
+  },
+
   box: { alignItems: 'center', paddingHorizontal: 30 },
   card: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.heroChip, borderRadius: 10, padding: 12, marginBottom: 8, width: '100%' },
   filePill: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 4, marginRight: 10 },

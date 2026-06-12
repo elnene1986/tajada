@@ -1,5 +1,13 @@
 // Unified transaction schema:
-// { id, date, description, amount, type: 'credit'|'debit', source, isBusiness: true }
+// { id, date, description, amountCents, type: 'credit'|'debit', source, isBusiness: true }
+//
+// `amountCents` is ALWAYS an integer number of cents (e.g. $9.99 → 999,
+// $1,234.56 → 123456). Never a float, never dollars. JavaScript only
+// has IEEE-754 floats, so summing dollar values with `+=` across a
+// year of transactions accumulates pennies of drift that show up when
+// the user's contador reconciles totals against the bank statement.
+// Parse strings to integer cents at ingest (via parseToCents from
+// utils/money), aggregate cents with integer math, format at display.
 //
 // `source` and `format` are stored as stable English keys
 // ('Bank', 'Credit Card', 'Venmo', 'PayPal', 'Other' for source;
@@ -8,6 +16,7 @@
 // Translation happens at display time via sourceLabel() / formatLabel().
 
 import { v4Fallback } from '../utils/helpers';
+import { parseToCents } from '../utils/money';
 import { t } from '../i18n';
 
 // ─── FORMAT DETECTION ───────────────────────────────────────────
@@ -113,17 +122,17 @@ export function parseCapitalOne(content) {
     const row = rows[i];
     if (row.length <= amtIdx) continue;
 
-    const rawAmt = parseFloat(row[amtIdx]?.replace(/[,$]/g, ''));
-    if (isNaN(rawAmt)) continue;
+    const rawCents = parseToCents(row[amtIdx]);
+    if (!Number.isFinite(rawCents)) continue;
 
     const txnType = row[typeIdx]?.toLowerCase() || '';
-    const isCredit = typeIdx !== -1 ? txnType.includes('credit') : rawAmt > 0;
+    const isCredit = typeIdx !== -1 ? txnType.includes('credit') : rawCents > 0;
 
     transactions.push({
       id: v4Fallback(),
       date: row[dateIdx] || '',
       description: cleanDescription(row[descIdx] || ''),
-      amount: Math.abs(rawAmt),
+      amountCents: Math.abs(rawCents),
       type: isCredit ? 'credit' : 'debit',
       source: 'Bank',
       isBusiness: true,
@@ -161,11 +170,13 @@ export function parseVenmo(content) {
     // Skip bank transfers
     if (txnType === 'Standard Transfer' || txnType === 'Instant Transfer') continue;
 
-    const rawAmt = row[amtIdx]?.replace(/[$,\s+]/g, '');
-    const amt = parseFloat(rawAmt);
-    if (isNaN(amt)) continue;
+    // Venmo's "amount (total)" column comes through as "+ $1.00",
+    // "- $5.99", etc. parseToCents strips $/,/whitespace; the leading
+    // sign is preserved so credit-vs-debit detection still works.
+    const amtCents = parseToCents((row[amtIdx] || '').replace(/\+/g, ''));
+    if (!Number.isFinite(amtCents)) continue;
 
-    const isCredit = amt > 0;
+    const isCredit = amtCents > 0;
     const from = row[fromIdx] || '';
     const to = row[toIdx] || '';
     const note = row[noteIdx] || '';
@@ -193,7 +204,7 @@ export function parseVenmo(content) {
       id: v4Fallback(),
       date: dateStr,
       description: desc.trim(),
-      amount: Math.abs(amt),
+      amountCents: Math.abs(amtCents),
       type: isCredit ? 'credit' : 'debit',
       source: 'Venmo',
       isBusiness: true,
@@ -229,16 +240,18 @@ export function parsePayPal(content) {
     const txnType = (row[typeIdx] || '').toLowerCase();
     if (txnType.includes('transfer') || txnType.includes('withdraw')) continue;
 
-    const rawAmt = row[grossIdx]?.replace(/[,$"]/g, '');
-    const amt = parseFloat(rawAmt);
-    if (isNaN(amt)) continue;
+    // PayPal sometimes wraps the gross amount in extra quotes that
+    // slip past the CSV parser when the cell content was double-quoted.
+    // Strip them explicitly before parseToCents (which doesn't.)
+    const amtCents = parseToCents((row[grossIdx] || '').replace(/"/g, ''));
+    if (!Number.isFinite(amtCents)) continue;
 
     transactions.push({
       id: v4Fallback(),
       date: row[dateIdx],
       description: row[nameIdx] || t('parser.paypal.fallback'),
-      amount: Math.abs(amt),
-      type: amt >= 0 ? 'credit' : 'debit',
+      amountCents: Math.abs(amtCents),
+      type: amtCents >= 0 ? 'credit' : 'debit',
       source: 'PayPal',
       isBusiness: true,
     });
@@ -265,16 +278,16 @@ export function parseChaseCreditCard(content) {
     const row = rows[i];
     if (row.length <= amtIdx || !row[dateIdx]) continue;
 
-    const rawAmt = parseFloat(row[amtIdx]?.replace(/[,$]/g, ''));
-    if (isNaN(rawAmt)) continue;
+    const rawCents = parseToCents(row[amtIdx]);
+    if (!Number.isFinite(rawCents)) continue;
 
     // Chase: negative = purchase (expense), positive = credit/payment
     transactions.push({
       id: v4Fallback(),
       date: row[dateIdx],
       description: row[descIdx] || '',
-      amount: Math.abs(rawAmt),
-      type: rawAmt < 0 ? 'debit' : 'credit',
+      amountCents: Math.abs(rawCents),
+      type: rawCents < 0 ? 'debit' : 'credit',
       source: 'Credit Card',
       isBusiness: true,
     });
@@ -337,19 +350,21 @@ export function parseGenericCC(content, opts) {
     const row = rows[i];
     if (!row[dateIdx]) continue;
 
-    let amt, isDebit;
+    let cents, isDebit;
 
     if (debitIdx !== -1 && creditIdx !== -1) {
       // Split-column shape: take whichever side has a value.
-      const debitAmt = parseFloat(String(row[debitIdx] || '').replace(/[,$]/g, '')) || 0;
-      const creditAmt = parseFloat(String(row[creditIdx] || '').replace(/[,$]/g, '')) || 0;
-      if (debitAmt === 0 && creditAmt === 0) continue;
-      amt = Math.abs(debitAmt || creditAmt);
-      isDebit = debitAmt > 0;
+      const debitCents = parseToCents(row[debitIdx]);
+      const creditCents = parseToCents(row[creditIdx]);
+      const dCents = Number.isFinite(debitCents) ? debitCents : 0;
+      const cCents = Number.isFinite(creditCents) ? creditCents : 0;
+      if (dCents === 0 && cCents === 0) continue;
+      cents = Math.abs(dCents || cCents);
+      isDebit = dCents > 0;
     } else if (amtIdx !== -1) {
-      const rawAmt = parseFloat(String(row[amtIdx] || '').replace(/[,$]/g, ''));
-      if (isNaN(rawAmt)) continue;
-      amt = Math.abs(rawAmt);
+      const rawCents = parseToCents(row[amtIdx]);
+      if (!Number.isFinite(rawCents)) continue;
+      cents = Math.abs(rawCents);
 
       // Prefer an explicit transaction-type column when present.
       if (typeIdx !== -1) {
@@ -361,13 +376,13 @@ export function parseGenericCC(content, opts) {
           isDebit = true;
         } else {
           // Type column wasn't decisive — fall back to sign + format.
-          isDebit = isCC ? rawAmt > 0 : rawAmt < 0;
+          isDebit = isCC ? rawCents > 0 : rawCents < 0;
         }
       } else {
         // No type column. Use format hint:
         //   CC: positive = charge (debit), negative = payment/credit
         //   Bank: positive = deposit (credit), negative = withdrawal (debit)
-        isDebit = isCC ? rawAmt > 0 : rawAmt < 0;
+        isDebit = isCC ? rawCents > 0 : rawCents < 0;
       }
     } else {
       continue;
@@ -377,7 +392,7 @@ export function parseGenericCC(content, opts) {
       id: v4Fallback(),
       date: row[dateIdx],
       description: descIdx !== -1 ? row[descIdx] || '' : '',
-      amount: amt,
+      amountCents: cents,
       type: isDebit ? 'debit' : 'credit',
       source: sourceLabel,
       isBusiness: true,
@@ -402,10 +417,10 @@ export function parseOFX(content) {
 
     const trnType = getTag('TRNTYPE');
     const dateRaw = getTag('DTPOSTED');
-    const amt = parseFloat(getTag('TRNAMT'));
+    const amtCents = parseToCents(getTag('TRNAMT'));
     const name = getTag('NAME') || getTag('MEMO') || t('parser.ofx.fallback');
 
-    if (isNaN(amt) || !dateRaw) continue;
+    if (!Number.isFinite(amtCents) || !dateRaw) continue;
 
     // Parse OFX date: 20250315120000 -> 03/15/25
     const y = dateRaw.slice(0, 4);
@@ -417,8 +432,8 @@ export function parseOFX(content) {
       id: v4Fallback(),
       date: dateStr,
       description: name,
-      amount: Math.abs(amt),
-      type: amt >= 0 ? 'credit' : 'debit',
+      amountCents: Math.abs(amtCents),
+      type: amtCents >= 0 ? 'credit' : 'debit',
       source: 'Bank',
       isBusiness: true,
     });

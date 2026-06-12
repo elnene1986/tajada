@@ -7,22 +7,14 @@ export function v4Fallback() {
   });
 }
 
-// Format currency
-export function formatMoney(n) {
-  return '$' + Math.abs(n).toLocaleString('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-}
-
-// Format compact currency ($22.4k)
-export function formatCompact(n) {
-  const abs = Math.abs(n);
-  if (abs >= 1000) {
-    return '$' + (abs / 1000).toFixed(1) + 'k';
-  }
-  return formatMoney(n);
-}
+// Money formatters live in src/utils/money.js — they operate on
+// integer cents (the canonical internal representation). The old
+// formatMoney() / formatCompact() helpers that lived here took raw
+// float dollars; they were unused at removal time, but their absence
+// is intentional: no float-dollar formatter should exist alongside
+// the cents-based ones, because nothing prevents a future caller from
+// accidentally passing aggregated dollars (which is the bug we're
+// avoiding). If you need a money formatter, import from utils/money.
 
 // Parse date string to Date object
 export function parseDate(dateStr) {

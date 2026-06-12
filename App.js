@@ -15,10 +15,24 @@ import { t } from './src/i18n';
 
 var Stack = createNativeStackNavigator();
 
+// DEV ONLY: flip to true (and reload) to replay the onboarding
+// presentation without clearing app data. Has no effect in production.
+var FORCE_ONBOARDING = false;
+
 function MainApp() {
   return (
     <NavigationContainer>
-      <Stack.Navigator initialRouteName="Home">
+      <Stack.Navigator
+        initialRouteName="Home"
+        screenOptions={{
+          headerStyle: { backgroundColor: colors.screenBg },
+          headerShadowVisible: false,
+          headerTintColor: colors.textPrimary,
+          headerTitleStyle: { fontWeight: '600', fontSize: 16, color: colors.textPrimary },
+          headerBackTitleVisible: false,
+          contentStyle: { backgroundColor: colors.screenBg },
+        }}
+      >
         <Stack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
         <Stack.Screen name="Import" component={ImportScreen} options={{ title: t('nav.import') }} />
         <Stack.Screen name="Review" component={ReviewScreen} options={{ title: t('nav.review') }} />
@@ -36,7 +50,7 @@ export default function App() {
 
   useEffect(function() {
     hasSeenOnboarding().then(function(seen) {
-      setShowOnboarding(!seen);
+      setShowOnboarding((__DEV__ && FORCE_ONBOARDING) || !seen);
       setLoading(false);
     });
   }, []);

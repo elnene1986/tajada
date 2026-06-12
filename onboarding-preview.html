@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="es-MX">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Tajada — Onboarding intro preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  /* ─── Tajada brand tokens (matched to src/brand/tajada.js) ─── */
+  :root {
+    --paper:        #F2E9D8;
+    --paper-card:   #F9F3E4;
+    --paper-deep:   #E8DDC4;
+    --ink:          #14100C;
+    --ink-soft:     #4A3F32;
+    --ink-faint:    #8A7C66;
+    --ink-dim:      #A89A80;
+    --saffron:      #C99A2C;
+    --saffron-soft: #DAB152;
+    --hero-chip:    rgba(20,16,12,0.05);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    background: #1F1A14;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    color: #F2E9D8;
+    -webkit-font-smoothing: antialiased;
+    min-height: 100vh;
+  }
+
+  /* ─── Page layout: phone frame centered, info under ─── */
+  .page {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 48px 24px 80px;
+    gap: 36px;
+  }
+
+  .pageHead { text-align: center; max-width: 560px; }
+  .pageHead h1 {
+    font-size: 22px; font-weight: 600; letter-spacing: -0.02em;
+    margin-bottom: 8px; color: #F2E9D8;
+  }
+  .pageHead p { font-size: 14px; color: #B6A992; line-height: 1.55; }
+  .pageHead .swap { color: var(--saffron-soft); font-weight: 500; }
+
+  /* ─── Phone frame ─── */
+  .phone {
+    width: 390px; max-width: 100%;
+    height: 780px;
+    background: #14100C;
+    border-radius: 48px;
+    padding: 12px;
+    box-shadow:
+      0 0 0 2px #2a2218,
+      0 30px 60px rgba(0,0,0,0.5),
+      0 8px 24px rgba(0,0,0,0.3);
+    position: relative;
+  }
+  .phone::before {
+    /* Dynamic-island-ish */
+    content: "";
+    position: absolute;
+    top: 22px; left: 50%; transform: translateX(-50%);
+    width: 110px; height: 30px;
+    background: #000;
+    border-radius: 999px;
+    z-index: 3;
+  }
+  .screen {
+    width: 100%; height: 100%;
+    border-radius: 36px;
+    overflow: hidden;
+    background: var(--paper);
+    color: var(--ink);
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+
+  /* ─── Status bar (mock) ─── */
+  .statusBar {
+    height: 56px;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 32px 0;
+    font-size: 14px; font-weight: 600;
+    color: var(--ink);
+  }
+  .statusBar .right { display: flex; align-items: center; gap: 6px; }
+
+  /* ─── Slide body ─── */
+  .slide {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 0 32px;
+    text-align: center;
+  }
+
+  /* Welcome graphic (mirrors src/screens/OnboardingScreen.js g.welcome*) */
+  .welcomeBox {
+    align-items: center; justify-content: center;
+    margin-bottom: 40px;
+    display: flex; flex-direction: column;
+  }
+  .welcomeMark {
+    width: 96px; height: 96px;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 24px;
+    position: relative;
+  }
+  .welcomeSquare {
+    width: 84px; height: 84px;
+    border-radius: 20px;
+    background: var(--ink);
+  }
+  /* CSS triangle technique mirroring React Native borderTopWidth wedge */
+  .welcomeWedge {
+    position: absolute;
+    top: 6px; right: 6px;
+    width: 0; height: 0;
+    border-top: 34px solid var(--saffron);
+    border-left: 34px solid transparent;
+  }
+  .welcomeRule {
+    width: 48px; height: 2px;
+    background: var(--saffron);
+    border-radius: 1px;
+    margin-bottom: 18px;
+  }
+  .welcomeBadge {
+    padding: 5px 12px;
+    border-radius: 999px;
+    background: var(--hero-chip);
+  }
+  .welcomeBadgeTxt {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.4px;
+    color: var(--ink-soft);
+  }
+
+  /* Title + sub (match s.slideTitle / s.slideSub) */
+  .slideTitle {
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--ink);
+    letter-spacing: -0.5px;
+    line-height: 34px;
+    margin-bottom: 12px;
+    white-space: pre-line; /* respects the \n in introTitle */
+  }
+  .slideSub {
+    font-size: 15px;
+    color: var(--ink-soft);
+    line-height: 22px;
+    max-width: 320px;
+  }
+
+  /* ─── Bottom (dots + CTA + skip) ─── */
+  .bottom {
+    padding: 0 32px 50px;
+    display: flex; flex-direction: column; align-items: center;
+  }
+  .dots {
+    display: flex; gap: 8px;
+    margin-bottom: 24px;
+  }
+  .dot {
+    width: 8px; height: 8px;
+    border-radius: 4px;
+    background: var(--ink-dim);
+    transition: all 0.2s ease;
+  }
+  .dot.active {
+    background: var(--saffron);
+    width: 24px;
+  }
+  .nextBtn {
+    background: var(--saffron);
+    border-radius: 14px;
+    padding: 16px 0;
+    width: 100%;
+    text-align: center;
+    color: var(--ink);
+    font-size: 16px;
+    font-weight: 600;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .skipBtn {
+    margin-top: 16px;
+    background: transparent; border: none;
+    color: var(--ink-faint);
+    font-size: 14px;
+    cursor: pointer;
+    font-family: inherit;
+    padding: 4px 8px;
+  }
+
+  /* ─── Caption under phone ─── */
+  .caption {
+    text-align: center; max-width: 560px;
+    color: #B6A992; font-size: 13.5px;
+    line-height: 1.6;
+  }
+  .caption code {
+    background: rgba(255,255,255,0.06);
+    padding: 2px 6px; border-radius: 4px;
+    font-family: ui-monospace, monospace;
+    font-size: 12.5px;
+    color: var(--saffron-soft);
+  }
+  .caption strong { color: #F2E9D8; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<div class="page">
+  <div class="pageHead">
+    <h1>Onboarding intro — slide 1 of 5</h1>
+    <p>This is the new welcome slide rendered with the exact same colors, typography, and layout the React Native screen will produce. <span class="swap">Tap the saffron button</span> below to peek at how the next slide leads in.</p>
+  </div>
+
+  <!-- ─── Phone frame ─── -->
+  <div class="phone">
+    <div class="screen">
+      <div class="statusBar">
+        <span>9:41</span>
+        <div class="right">
+          <svg width="18" height="12" viewBox="0 0 18 12" fill="currentColor"><path d="M1 8h2v3H1zM5 6h2v5H5zM9 3h2v8H9zM13 1h2v10h-2z"/></svg>
+          <svg width="16" height="12" viewBox="0 0 16 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 4c2-2 5-3 7-3s5 1 7 3M3 6c1.5-1.3 3.5-2 5-2s3.5.7 5 2M5.5 8.2c.8-.7 1.7-1 2.5-1s1.7.3 2.5 1"/><circle cx="8" cy="10" r="1" fill="currentColor"/></svg>
+          <svg width="24" height="12" viewBox="0 0 24 12" fill="none" stroke="currentColor" stroke-width="1.2"><rect x="1" y="2" width="20" height="8" rx="2"/><rect x="3" y="4" width="14" height="4" rx="0.5" fill="currentColor"/><path d="M22 4v4" stroke-width="1.5"/></svg>
+        </div>
+      </div>
+
+      <div class="slide">
+        <div class="welcomeBox">
+          <div class="welcomeMark">
+            <div class="welcomeSquare"></div>
+            <div class="welcomeWedge"></div>
+          </div>
+          <div class="welcomeRule"></div>
+          <div class="welcomeBadge">
+            <div class="welcomeBadgeTxt">PARA CREADORES</div>
+          </div>
+        </div>
+
+        <div class="slideTitle">Sé lo estresante que es
+la temporada de impuestos.</div>
+        <div class="slideSub">Por eso hice Tajada. En unos cuantos toques le entregas a tu contador un documento limpio y detallado — sin hojas de Excel a medianoche, sin recibos perdidos. Tu tiempo es tu recurso más valioso. Vamos a cuidarlo.</div>
+      </div>
+
+      <div class="bottom">
+        <div class="dots">
+          <div class="dot active"></div>
+          <div class="dot"></div>
+          <div class="dot"></div>
+          <div class="dot"></div>
+          <div class="dot"></div>
+        </div>
+        <button class="nextBtn">Siguiente</button>
+        <button class="skipBtn">Omitir</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="caption">
+    <strong>To see this on an actual device:</strong>
+    run <code>npx expo start</code>, scan the QR with Expo Go, then in <code>App.js</code> temporarily change <code>setShowOnboarding(!seen)</code> to <code>setShowOnboarding(true)</code> on line 39 so the flow re-triggers on every reload. Revert before you commit.
+  </div>
+</div>
+
+</body>
+</html>

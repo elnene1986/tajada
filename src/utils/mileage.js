@@ -23,6 +23,7 @@
 // requires all three.
 
 import * as FileSystem from 'expo-file-system/legacy';
+import { writeAtomic } from './fsAtomic';
 
 var MILEAGE_FILE = FileSystem.documentDirectory + 'tajada_mileage.json';
 
@@ -51,7 +52,7 @@ async function readFile() {
 }
 
 async function writeFile(state) {
-  await FileSystem.writeAsStringAsync(MILEAGE_FILE, JSON.stringify(state));
+  await writeAtomic(MILEAGE_FILE, JSON.stringify(state));
 }
 
 export async function getMileageEntries() {

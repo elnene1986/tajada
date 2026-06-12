@@ -8,6 +8,7 @@ import { categoryByKey } from '../utils/categories';
 import { sourceLabel } from '../parsers';
 import { isUnlocked } from '../utils/unlock';
 import { getMileageState, totalMiles, totalDeduction, entriesForYear } from '../utils/mileage';
+import { fmtCents, centsToFixedString } from '../utils/money';
 import Paywall from '../components/Paywall';
 import { colors } from '../theme';
 import brand from '../brand';
@@ -15,7 +16,9 @@ import brand from '../brand';
 // imported under the alias `tr`.
 import { t as tr } from '../i18n';
 
-function fmt(n) { return '$' + Math.abs(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+// Money formatter — takes integer cents. Local alias kept so we don't
+// have to rewrite every call site that already says fmt(x.amountCents).
+var fmt = fmtCents;
 
 // Group a list of transactions by their creator category. Returns
 // an array of { key, label, schedC, total, count } sorted descending
@@ -35,7 +38,7 @@ function groupByCategory(transactions) {
         count: 0,
       };
     }
-    buckets[key].total += t.amount;
+    buckets[key].total += t.amountCents;
     buckets[key].count += 1;
   });
   return Object.keys(buckets).map(function(k) { return buckets[k]; })
@@ -108,11 +111,11 @@ export default function SummaryScreen({ navigation, route }) {
   var t = session.transactions;
   var bInc = t.filter(function(x) { return x.type === 'credit' && x.isBusiness; });
   var bExp = t.filter(function(x) { return x.type === 'debit' && x.isBusiness; });
-  var totInc = bInc.reduce(function(s,x) { return s+x.amount; }, 0);
-  var totExp = bExp.reduce(function(s,x) { return s+x.amount; }, 0);
+  var totInc = bInc.reduce(function(s,x) { return s+x.amountCents; }, 0);
+  var totExp = bExp.reduce(function(s,x) { return s+x.amountCents; }, 0);
   var net = totInc - totExp;
-  var exInc = t.filter(function(x) { return x.type === 'credit' && !x.isBusiness; }).reduce(function(s,x) { return s+x.amount; }, 0);
-  var exExp = t.filter(function(x) { return x.type === 'debit' && !x.isBusiness; }).reduce(function(s,x) { return s+x.amount; }, 0);
+  var exInc = t.filter(function(x) { return x.type === 'credit' && !x.isBusiness; }).reduce(function(s,x) { return s+x.amountCents; }, 0);
+  var exExp = t.filter(function(x) { return x.type === 'debit' && !x.isBusiness; }).reduce(function(s,x) { return s+x.amountCents; }, 0);
   var taxYear = '2025';
 
   var sources = [];
@@ -124,8 +127,8 @@ export default function SummaryScreen({ navigation, route }) {
     return {
       source: src,
       total: stxns.length,
-      bizInc: stxns.filter(function(x) { return x.type === 'credit' && x.isBusiness; }).reduce(function(s,x) { return s+x.amount; }, 0),
-      bizExp: stxns.filter(function(x) { return x.type === 'debit' && x.isBusiness; }).reduce(function(s,x) { return s+x.amount; }, 0),
+      bizInc: stxns.filter(function(x) { return x.type === 'credit' && x.isBusiness; }).reduce(function(s,x) { return s+x.amountCents; }, 0),
+      bizExp: stxns.filter(function(x) { return x.type === 'debit' && x.isBusiness; }).reduce(function(s,x) { return s+x.amountCents; }, 0),
     };
   });
 
@@ -134,11 +137,11 @@ export default function SummaryScreen({ navigation, route }) {
     var dateStr = (today.getMonth()+1) + '/' + today.getDate() + '/' + today.getFullYear();
 
     var incRows = bInc.map(function(x) {
-      return '<tr><td class="td">' + x.date + '</td><td class="td">' + x.description + '</td><td class="td" style="color:#888">' + sourceLabel(x.source) + '</td><td class="td amt" style="color:#059669">+' + fmt(x.amount) + '</td></tr>';
+      return '<tr><td class="td">' + x.date + '</td><td class="td">' + x.description + '</td><td class="td" style="color:#888">' + sourceLabel(x.source) + '</td><td class="td amt" style="color:#059669">+' + fmt(x.amountCents) + '</td></tr>';
     }).join('');
 
     var expRows = bExp.map(function(x) {
-      return '<tr><td class="td">' + x.date + '</td><td class="td">' + x.description + '</td><td class="td" style="color:#888">' + sourceLabel(x.source) + '</td><td class="td amt" style="color:#DC2626">-' + fmt(x.amount) + '</td></tr>';
+      return '<tr><td class="td">' + x.date + '</td><td class="td">' + x.description + '</td><td class="td" style="color:#888">' + sourceLabel(x.source) + '</td><td class="td amt" style="color:#DC2626">-' + fmt(x.amountCents) + '</td></tr>';
     }).join('');
 
     // Category breakdown — the creator-specific addition. Each row
@@ -309,7 +312,7 @@ export default function SummaryScreen({ navigation, route }) {
   var exportCSV = async function() {
     var biz = t.filter(function(x) { return x.isBusiness; });
     var csv = tr('summary.csvHeader') + '\n' + biz.map(function(x) {
-      return '"' + x.date + '","' + x.description.replace(/"/g,'""') + '","' + sourceLabel(x.source) + '","' + x.type + '","' + (x.type==='debit'?'-':'') + x.amount.toFixed(2) + '"';
+      return '"' + x.date + '","' + x.description.replace(/"/g,'""') + '","' + sourceLabel(x.source) + '","' + x.type + '","' + (x.type==='debit'?'-':'') + centsToFixedString(x.amountCents) + '"';
     }).join('\n');
     var csvName = brand.displayName + '_' + taxYear + '.csv';
     var csvPath = FileSystem.cacheDirectory + csvName;
