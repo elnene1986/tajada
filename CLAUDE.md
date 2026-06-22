@@ -2,14 +2,15 @@
 
 **What this is.** Tajada is a React Native (Expo) on-device tax-sorting app for US-based Spanish-speaking creators. Forked from SplitLedger; single-brand Spanish-only project. Free to import / classify / review; paid one-time IAP ($14.99) to export PDF or CSV for a contador.
 
-**Last session checkpoint:** 2026-06-12 (UI polish + categorizer integration). This session: rebuilt the BrandLogo as a true folded-corner mark, themed the nav header app-wide, filled out Home ("Cómo funciona" empty state) and Import (premium dropzone + sources chips), rebranded onboarding slides 2–4 to brand tokens with Spanish illustration text, and integrated the deterministic Schedule C categorizer (`src/utils/categorizer.js`) into the import flow + Review modal. The TS reference modules + vitest suite live in ~/Documents/Claude/Projects/tajada/ts/. Phase 2 decisions below are STILL OPEN and remain the blocking items before submission — support email is still fake, still no ToS, still no first-launch disclaimer modal.
+**Last session checkpoint:** 2026-06-21 (marketing strategy + Phase 2 quick wins). This session: picked support email (`tajada.soporte@gmail.com`, replaced across all files), pushed landing page live at `https://elnene1986.github.io/tajada/`, implemented first-launch tax disclaimer modal (`src/components/DisclaimerModal.js`), and added paywall sample export preview (`docs/sample-export.html` + "Ver ejemplo" link in `Paywall.js`). Phase 2 remaining blockers: ToS and OnlyFans repositioning decision.
 
 ## Live URLs
 
 - **Repo:** https://github.com/elnene1986/tajada
 - **Privacy policy:** https://elnene1986.github.io/tajada/privacy
 - **Support page:** https://elnene1986.github.io/tajada/support
-- **Landing page (new this session):** push `docs/landing.html` to make it live at https://elnene1986.github.io/tajada/landing.html (or rename to `index.html` to make it the GH Pages homepage)
+- **Landing page:** https://elnene1986.github.io/tajada/ (live — `docs/index.html` on `main`)
+- **Sample export preview:** https://elnene1986.github.io/tajada/sample-export.html (linked from paywall)
 
 (GitHub Pages serves from `/docs` on `main`. Update those Markdown / HTML files and push — Pages republishes within ~60s.)
 
@@ -29,10 +30,10 @@
 
 These came out of the audit. Code work is blocked on each until Pablo decides.
 
-- [ ] **Pick the support email path.** Options discussed in session: (a) free dedicated Gmail like `tajada.support@gmail.com` (5 min, works for launch), (b) buy `tajada.app` (~$14–20/yr) + Cloudflare Email Routing free tier (15 min, more professional). Once decided, find-and-replace `hola@tajada.app` across `src/brand/tajada.js`, `docs/landing.html`, `docs/privacy.md`, `docs/support.md`, `docs/app-store/app-store-listing.md`, `docs/app-store/play-store-listing.md`.
-- [ ] **Decide on Terms of Service.** Audit found ZERO ToS exists. For a paid app handling tax-relevant data, this is real liability. Three paths: Termly self-serve ($10–15/mo, generates tax-app-tailored ToS), a one-shot indie template from a lawyer ($300–800), or roll your own. Recommended: Termly. Once you have the text, mirror to `docs/terms.md` so GH Pages serves it alongside privacy/support.
-- [ ] **First-launch tax-advice disclaimer modal.** Currently the only liability text the user sees in-app is the one-line `summary.pdfDisclaimer` *inside* the exported PDF — i.e., after they've paid and exported. Need a one-time acceptance modal at app first launch with copy along the lines of "Tajada organiza tus transacciones para que tu contador las pueda usar. **Tajada no es un preparador de impuestos** y no presenta declaraciones. La responsabilidad de presentar declaraciones precisas es tuya o de tu contador autorizado." → "Entendido" button → write a flag to disable. Pattern matches the existing `onboarding_done.flag`. Easy to draft once you confirm the copy.
-- [ ] **Paywall PDF preview (conversion, recommended pre-launch).** The paywall asks $14.99 for an export the user has never seen. Add a sample or watermarked/blurred preview of the PDF to the paywall (or a "ver ejemplo" link) so the purchase isn't sight-unseen. Identified in the 2026-06-12 kill-critic pass.
+- [x] **Support email** — DONE 2026-06-21: `tajada.soporte@gmail.com` created and replaced across all files (`src/brand/tajada.js`, `docs/landing.html`, `docs/privacy.md`, `docs/support.md`, `docs/app-store/app-store-listing.md`, `docs/app-store/play-store-listing.md`, `docs/app-store/submission-checklist.md`).
+- [ ] **Decide on Terms of Service.** Audit found ZERO ToS exists. For a paid app handling tax-relevant data, this is real liability. Three paths: Termly self-serve ($10–15/mo, generates tax-app-tailored ToS), a one-shot indie template from a lawyer ($300–800), or roll your own. Recommended: Termly. Once you have the text, mirror to `docs/terms.md` so GH Pages serves it alongside privacy/support. Then add a ToS URL to the App Store listing and a footer link on the landing page.
+- [x] **First-launch tax-advice disclaimer modal** — DONE 2026-06-21: `src/components/DisclaimerModal.js` + wired into `App.js`. Shows once after onboarding (or on first launch for existing users). Writes `disclaimer_seen.flag`. 5 new i18n keys (`disclaimer.*`). See "What the 2026-06-21 session built" below.
+- [x] **Paywall PDF preview** — DONE 2026-06-21: `docs/sample-export.html` live at `https://elnene1986.github.io/tajada/sample-export.html`. "Ver ejemplo de reporte →" link added to `Paywall.js` above the price block.
 - [ ] **OnlyFans repositioning in App Store listing.** Audit found OnlyFans is named in 14 places across listings, screenshots, landing, and privacy. Not an auto-reject but raises Apple review temperature. Recommended adjustment: reorder `PLATFORM_OPTIONS` in `src/screens/OnboardingScreen.js` so the screenshot of the picker doesn't put OnlyFans top-left; rewrite the opening paragraph of `docs/app-store/app-store-listing.md` (line 51) to lead with neutral platforms (Patreon, Stripe, Substack, Twitch, Etsy); pre-empt in App Review Notes ("Tajada is a tax-categorization tool that supports many creator platforms, including some that host adult content. Tajada itself contains no adult material."). Editorial — needs Pablo's call on aggressiveness.
 
 ### Phase 3 — App Store Connect setup (~60 min)
@@ -57,7 +58,7 @@ These came out of the audit. Code work is blocked on each until Pablo decides.
   - **Re-check the opening paragraph after the OnlyFans repositioning decision (Phase 2)**
 - [ ] Set Privacy Policy URL: `https://elnene1986.github.io/tajada/privacy`
 - [ ] Set Support URL: `https://elnene1986.github.io/tajada/support`
-- [ ] Set Marketing URL: `https://tajada.app` (or your landing.html GH Pages URL) — leave blank if not live
+- [ ] Set Marketing URL: `https://elnene1986.github.io/tajada/` (landing page is live) or `https://tajada.app` if domain is registered
 
 ### Phase 4 — Google Play Console setup (~60 min)
 
@@ -70,7 +71,7 @@ These came out of the audit. Code work is blocked on each until Pablo decides.
 - [ ] Setup → API access → create service account, download JSON, save as `./play-service-account.json` (already in `.gitignore`)
 - [ ] Paste listing from `docs/app-store/play-store-listing.md` (Spanish primary, English secondary)
 - [ ] Set Privacy Policy URL: `https://elnene1986.github.io/tajada/privacy`
-- [ ] Set Support email: whichever address Phase 2 decided on
+- [ ] Set Support email: `tajada.soporte@gmail.com`
 - [ ] Complete Data Safety form (answers in `play-store-listing.md` — bottom line: collects nothing, shares nothing)
 - [ ] Complete IARC content rating questionnaire (expected: Everyone)
 
@@ -108,6 +109,23 @@ These came out of the audit. Code work is blocked on each until Pablo decides.
 - [ ] **Cross-platform IAP recovery note in support.md.** A user who pays on iPhone can't restore the purchase on Android (Apple/Google don't share transaction state). Industry-standard limitation but worth documenting in `docs/support.md` so support emails don't surprise you.
 - [ ] **Delete `onboarding-preview.html`** in the repo root once you no longer need the static preview of the welcome slide.
 - [ ] **Receipt photos** — future feature. `expo-image-picker`. When you wire it up, **add `NSPhotoLibraryUsageDescription` back to `app.config.js`** — it was removed this session because the audit caught it declared without being used (App Store guideline 5.1.1 rejection trigger).
+
+---
+
+## What the 2026-06-21 session built (marketing strategy + Phase 2 quick wins)
+
+### Marketing strategy decisions (no code — context for future sessions)
+- Identified $14.99 one-time as underpriced vs. market ($24.99 one-time or $9.99/yr recommended pre-launch).
+- OnlyFans/adult creator community identified as highest-leverage organic channel — Spanish-speaking, underserved, vocal. Softening the positioning is the wrong move; marketing directly to that community while keeping App Store copy neutral is the right balance.
+- Distribution gaps: no email list, no social presence, no accountant (contador) partner channel. Quickest wins: email waitlist on landing page + one Spanish-language post in a creator Facebook group or Reddit.
+- Suggested future monetization tier: free export limit or annual subscription for recurring revenue + natural annual renewal (IRS rate changes each December).
+
+### Code shipped
+
+- **Support email replaced** — `tajada.soporte@gmail.com` across 7 files. `docs/app-store/submission-checklist.md` marked ✓.
+- **Landing page live** — `docs/landing.html` copied to `docs/index.html` and pushed. Now live at `https://elnene1986.github.io/tajada/`.
+- **First-launch disclaimer modal** (`src/components/DisclaimerModal.js`) — one-time acceptance modal. Shows after onboarding for new users; shows on first launch for existing users who already completed onboarding. Writes `disclaimer_seen.flag` (same pattern as `onboarding_done.flag`). No tap-outside dismiss — acceptance required. 5 new i18n keys: `disclaimer.title`, `disclaimer.bodyPre`, `disclaimer.bodyBold`, `disclaimer.bodyPost`, `disclaimer.cta`. `App.js` updated: imports `DisclaimerModal`, adds `hasSeenDisclaimer` / `markDisclaimerSeen` helpers using FileSystem, loads both flags in parallel at startup, renders `<DisclaimerModal visible={!showOnboarding && showDisclaimer} onAccept={handleDisclaimerAccept} />` inside `<ErrorBoundary>`.
+- **Paywall sample export preview** (`docs/sample-export.html`) — full realistic mock export (Patreon, Stripe, OnlyFans, Venmo fake data; ~$18k income / ~$3.2k expenses) styled identically to the real generated PDF. Saffron "Este es un reporte de ejemplo" banner at top. Live at `https://elnene1986.github.io/tajada/sample-export.html`. `Paywall.js` updated: imports `Linking`, adds `SAMPLE_EXPORT_URL` constant, renders a "Ver ejemplo de reporte →" saffron underlined link between the feature list and price block. 1 new i18n key: `paywall.seeExample`. Total i18n keys: **321**.
 
 ---
 
