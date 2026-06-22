@@ -345,5 +345,11 @@
   "parser.clean.venmoTransferIn": "Transferencia recibida de Venmo",
   "parser.clean.venmoCashout": "Depósito desde Venmo",
   "parser.clean.paypalWithdrawal": "Retiro de PayPal",
-  "parser.clean.atmWalgreens": "Retiro en cajero — Walgreens, "
+  "parser.clean.atmWalgreens": "Retiro en cajero — Walgreens, ",
+
+  "disclaimer.title": "Antes de empezar",
+  "disclaimer.bodyPre": "Tajada organiza tus transacciones para que tu contador las pueda usar. ",
+  "disclaimer.bodyBold": "Tajada no es un preparador de impuestos",
+  "disclaimer.bodyPost": " y no presenta declaraciones ante el IRS. La responsabilidad de presentar declaraciones precisas es tuya o de tu contador autorizado.",
+  "disclaimer.cta": "Entendido"
 }

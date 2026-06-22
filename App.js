@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, ActivityIndicator } from 'react-native';
+import * as FileSystem from 'expo-file-system/legacy';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import HomeScreen from './src/screens/HomeScreen';
@@ -9,9 +10,27 @@ import SummaryScreen from './src/screens/SummaryScreen';
 import BackupScreen from './src/screens/BackupScreen';
 import MileageScreen from './src/screens/MileageScreen';
 import OnboardingScreen, { hasSeenOnboarding } from './src/screens/OnboardingScreen';
+import DisclaimerModal from './src/components/DisclaimerModal';
 import ErrorBoundary from './src/components/ErrorBoundary';
 import { colors } from './src/theme';
 import { t } from './src/i18n';
+
+var DISCLAIMER_FLAG = FileSystem.documentDirectory + 'disclaimer_seen.flag';
+
+async function hasSeenDisclaimer() {
+  try {
+    var info = await FileSystem.getInfoAsync(DISCLAIMER_FLAG);
+    return info.exists;
+  } catch (_) {
+    return false;
+  }
+}
+
+async function markDisclaimerSeen() {
+  try {
+    await FileSystem.writeAsStringAsync(DISCLAIMER_FLAG, '1');
+  } catch (_) {}
+}
 
 var Stack = createNativeStackNavigator();
 
@@ -47,13 +66,22 @@ function MainApp() {
 export default function App() {
   var [loading, setLoading] = useState(true);
   var [showOnboarding, setShowOnboarding] = useState(false);
+  var [showDisclaimer, setShowDisclaimer] = useState(false);
 
   useEffect(function() {
-    hasSeenOnboarding().then(function(seen) {
-      setShowOnboarding((__DEV__ && FORCE_ONBOARDING) || !seen);
+    Promise.all([hasSeenOnboarding(), hasSeenDisclaimer()]).then(function(results) {
+      var seenOnboarding = results[0];
+      var seenDisclaimer = results[1];
+      setShowOnboarding((__DEV__ && FORCE_ONBOARDING) || !seenOnboarding);
+      setShowDisclaimer(!seenDisclaimer);
       setLoading(false);
     });
   }, []);
+
+  function handleDisclaimerAccept() {
+    markDisclaimerSeen();
+    setShowDisclaimer(false);
+  }
 
   if (loading) {
     return (
@@ -69,6 +97,10 @@ export default function App() {
         ? <OnboardingScreen onDone={function() { setShowOnboarding(false); }} />
         : <MainApp />
       }
+      <DisclaimerModal
+        visible={!showOnboarding && showDisclaimer}
+        onAccept={handleDisclaimerAccept}
+      />
     </ErrorBoundary>
   );
 }
