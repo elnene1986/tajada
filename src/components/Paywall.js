@@ -18,12 +18,14 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, Modal, TouchableOpacity, ActivityIndicator,
-  StyleSheet, ScrollView,
+  StyleSheet, ScrollView, Linking,
 } from 'react-native';
 import { getProvider, resetProvider, PRODUCT_ID_FULL_EXPORT } from '../utils/iap';
 import { recordPurchase } from '../utils/unlock';
 import { colors } from '../theme';
 import { t } from '../i18n';
+
+var SAMPLE_EXPORT_URL = 'https://elnene1986.github.io/tajada/sample-export.html';
 
 export default function Paywall({ visible, onUnlocked, onCancel }) {
   var [loading, setLoading] = useState(true);
@@ -169,6 +171,15 @@ export default function Paywall({ visible, onUnlocked, onCancel }) {
               <Feature label={t('paywall.feature.allSessions')} />
             </View>
 
+            {/* Sample preview link — lets the user see exactly what they're
+                buying before committing. Opens GitHub Pages hosted sample. */}
+            <TouchableOpacity
+              style={s.sampleLink}
+              onPress={function() { Linking.openURL(SAMPLE_EXPORT_URL); }}
+            >
+              <Text style={s.sampleLinkTxt}>{t('paywall.seeExample')}</Text>
+            </TouchableOpacity>
+
             {/* Price block */}
             <View style={s.priceBlock}>
               {loading
@@ -262,6 +273,9 @@ var s = StyleSheet.create({
   featureRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 8 },
   featureCheck: { fontSize: 14, color: colors.income, fontWeight: '700', width: 20, marginTop: 1 },
   featureTxt: { flex: 1, fontSize: 13, color: colors.textPrimary, lineHeight: 18 },
+
+  sampleLink: { alignItems: 'center', paddingVertical: 10, marginBottom: 4 },
+  sampleLinkTxt: { fontSize: 13, color: colors.accent, fontWeight: '600', textDecorationLine: 'underline' },
 
   priceBlock: { alignItems: 'center', backgroundColor: colors.infoBg, borderRadius: 10, padding: 16, marginBottom: 16 },
   priceTxt: { fontSize: 32, fontWeight: '800', color: colors.textPrimary },

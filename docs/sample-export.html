@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tajada — Ejemplo de Reporte</title>
+<style>
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; box-sizing: border-box; }
+  body { font-family: Helvetica, Arial, sans-serif; color: #111; padding: 0; margin: 0; background: #f5f5f5; }
+
+  /* Preview banner */
+  .preview-banner {
+    background: #C99A2C;
+    color: #14100C;
+    text-align: center;
+    padding: 10px 16px;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+  }
+  .preview-banner a {
+    color: #14100C;
+    text-decoration: underline;
+  }
+
+  /* PDF wrapper */
+  .pdf {
+    max-width: 780px;
+    margin: 24px auto;
+    background: #fff;
+    box-shadow: 0 2px 24px rgba(0,0,0,0.10);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  /* Header */
+  .hdr {
+    padding: 28px 32px;
+    background: #fff;
+    border-bottom: 1px solid #E2E8F0;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .hdr-mark { display: flex; align-items: center; gap: 14px; }
+  .hdr-wordmark { font-size: 32px; color: #14100C; font-weight: 700; letter-spacing: -1px; }
+  .hdr-sub { color: #94A3B8; font-size: 10px; letter-spacing: 1.5px; margin-top: 10px; font-weight: 600; text-transform: uppercase; }
+
+  /* Body */
+  .body { padding: 24px 32px; }
+
+  /* Summary cards */
+  .cards { width: 100%; border-collapse: separate; border-spacing: 8px; margin-bottom: 20px; }
+  .cards td { border-radius: 8px; padding: 14px 16px; text-align: center; }
+  .cards h4 { font-size: 9px; letter-spacing: 1px; margin: 0 0 4px; font-weight: bold; text-transform: uppercase; }
+  .cards p { font-size: 22px; font-weight: bold; margin: 0; }
+  .card-inc { background-color: #ECFDF5; }
+  .card-exp { background-color: #FEF2F2; }
+  .card-net { background-color: #EFF6FF; }
+
+  /* Section header */
+  .sec { font-size: 14px; font-weight: bold; margin: 24px 0 8px; padding-bottom: 6px; border-bottom: 2px solid #0B1D36; }
+
+  /* Tables */
+  table.data { width: 100%; border-collapse: collapse; }
+  .th { padding: 6px 10px; font-size: 9px; color: #999; font-weight: bold; letter-spacing: 0.5px; text-align: left; border-bottom: 2px solid #DDD; text-transform: uppercase; }
+  .th-r { text-align: right; }
+  .td { padding: 6px 10px; font-size: 11px; border-bottom: 1px solid #EEE; }
+  .amt { text-align: right; font-weight: bold; }
+  .tot td { padding: 8px 10px; font-weight: bold; font-size: 12px; border-top: 2px solid #111; }
+
+  /* Excluded box */
+  .ex { border: 1px solid #EEE; border-radius: 8px; padding: 12px 14px; margin: 16px 0; }
+  .ex h4 { font-size: 9px; color: #999; letter-spacing: 1px; margin: 0 0 6px; font-weight: bold; text-transform: uppercase; }
+  .ex-row { font-size: 11px; color: #666; margin-bottom: 3px; }
+
+  /* Footer */
+  .foot { margin-top: 32px; padding-top: 12px; border-top: 1px solid #DDD; font-size: 9px; color: #999; }
+
+  @media (max-width: 600px) {
+    .body { padding: 16px; }
+    .hdr { padding: 20px 16px; }
+    .cards { font-size: 90%; }
+  }
+</style>
+</head>
+<body>
+
+<div class="preview-banner">
+  📋 Este es un reporte de ejemplo — así se ve lo que Tajada genera para tu contador.
+  <a href="https://elnene1986.github.io/tajada/">Descargar Tajada</a>
+</div>
+
+<div class="pdf">
+
+  <!-- Header -->
+  <div class="hdr">
+    <div>
+      <div class="hdr-mark">
+        <svg width="50" height="46" viewBox="0 0 240 220">
+          <path d="M 32 18 L 132 18 L 198 84 L 198 188 A 32 32 0 0 1 166 220 L 32 220 A 32 32 0 0 1 0 188 L 0 50 A 32 32 0 0 1 32 18 Z" fill="#14100C"/>
+          <path d="M 148 0 L 232 0 A 8 8 0 0 1 240 8 L 240 60 Z" fill="#C99A2C"/>
+        </svg>
+        <span class="hdr-wordmark">tajada</span>
+      </div>
+      <div class="hdr-sub">Reporte de Ingresos y Gastos · Año Fiscal 2025</div>
+    </div>
+  </div>
+
+  <div class="body">
+
+    <!-- Summary cards -->
+    <table class="cards" cellpadding="0" cellspacing="8">
+      <tr>
+        <td class="card-inc">
+          <h4 style="color:#065F46">Ingresos de Negocio</h4>
+          <p style="color:#059669">$18,340.00</p>
+        </td>
+        <td class="card-exp">
+          <h4 style="color:#991B1B">Gastos de Negocio</h4>
+          <p style="color:#DC2626">$3,214.50</p>
+        </td>
+        <td class="card-net">
+          <h4 style="color:#1E40AF">Ganancia Neta</h4>
+          <p style="color:#2563EB">$15,125.50</p>
+        </td>
+      </tr>
+    </table>
+
+    <!-- Excluded -->
+    <div class="ex">
+      <h4>Transacciones Personales (excluidas del reporte)</h4>
+      <div class="ex-row">Ingresos personales: $1,200.00 · 4 transacciones</div>
+      <div class="ex-row">Gastos personales: $890.45 · 11 transacciones</div>
+    </div>
+
+    <!-- Mileage -->
+    <div class="sec">Schedule C Línea 9 — Millaje de Negocio</div>
+    <div class="ex">
+      <div class="ex-row" style="font-size:13px;color:#111;font-weight:600">
+        847 millas × $0.700/mi = $592.90 de deducción
+      </div>
+      <div class="ex-row" style="margin-top:6px">
+        23 viajes registrados · Año fiscal 2025
+      </div>
+    </div>
+
+    <!-- Income by category -->
+    <div class="sec">Ingresos por Categoría (Schedule C)</div>
+    <table class="data" cellpadding="0" cellspacing="0">
+      <tr>
+        <th class="th">Categoría</th>
+        <th class="th">Línea Schedule C</th>
+        <th class="th" style="text-align:right">Transacciones</th>
+        <th class="th th-r">Total</th>
+      </tr>
+      <tr>
+        <td class="td" style="font-weight:600">Ingresos de Creador</td>
+        <td class="td" style="color:#888;font-size:10px">Línea 1 — Ingresos brutos</td>
+        <td class="td" style="color:#666;text-align:right">34 transacciones</td>
+        <td class="td amt" style="color:#059669">$14,920.00</td>
+      </tr>
+      <tr>
+        <td class="td" style="font-weight:600">Propinas y Bonos</td>
+        <td class="td" style="color:#888;font-size:10px">Línea 1 — Ingresos brutos</td>
+        <td class="td" style="color:#666;text-align:right">8 transacciones</td>
+        <td class="td amt" style="color:#059669">$2,840.00</td>
+      </tr>
+      <tr>
+        <td class="td" style="font-weight:600">Servicios por Contrato</td>
+        <td class="td" style="color:#888;font-size:10px">Línea 1 — Ingresos brutos</td>
+        <td class="td" style="color:#666;text-align:right">3 transacciones</td>
+        <td class="td amt" style="color:#059669">$580.00</td>
+      </tr>
+      <tr class="tot">
+        <td></td><td></td>
+        <td class="amt" style="color:#999;font-size:11px;font-weight:normal">Total ingresos</td>
+        <td class="amt" style="color:#059669">+$18,340.00</td>
+      </tr>
+    </table>
+
+    <!-- Expenses by category -->
+    <div class="sec">Gastos por Categoría (Schedule C)</div>
+    <table class="data" cellpadding="0" cellspacing="0">
+      <tr>
+        <th class="th">Categoría</th>
+        <th class="th">Línea Schedule C</th>
+        <th class="th" style="text-align:right">Transacciones</th>
+        <th class="th th-r">Total</th>
+      </tr>
+      <tr>
+        <td class="td" style="font-weight:600">Software y Suscripciones</td>
+        <td class="td" style="color:#888;font-size:10px">Línea 18 — Gastos de oficina</td>
+        <td class="td" style="color:#666;text-align:right">9 transacciones</td>
+        <td class="td amt" style="color:#DC2626">$1,188.00</td>
+      </tr>
+      <tr>
+        <td class="td" style="font-weight:600">Producción de Contenido</td>
+        <td class="td" style="color:#888;font-size:10px">Línea 22 — Suministros</td>
+        <td class="td" style="color:#666;text-align:right">5 transacciones</td>
+        <td class="td amt" style="color:#DC2626">$876.50</td>
+      </tr>
+      <tr>
+        <td class="td" style="font-weight:600">Equipo</td>
+        <td class="td" style="color:#888;font-size:10px">Línea 13 — Depreciación / Sec. 179</td>
+        <td class="td" style="color:#666;text-align:right">2 transacciones</td>
+        <td class="td amt" style="color:#DC2626">$750.00</td>
+      </tr>
+      <tr>
+        <td class="td" style="font-weight:600">Comisiones de Plataforma</td>
+        <td class="td" style="color:#888;font-size:10px">Línea 10 — Comisiones y honorarios</td>
+        <td class="td" style="color:#666;text-align:right">12 transacciones</td>
+        <td class="td amt" style="color:#DC2626">$400.00</td>
+      </tr>
+      <tr class="tot">
+        <td></td><td></td>
+        <td class="amt" style="color:#999;font-size:11px;font-weight:normal">Total gastos</td>
+        <td class="amt" style="color:#DC2626">-$3,214.50</td>
+      </tr>
+    </table>
+
+    <!-- Income detail -->
+    <div class="sec">Ingresos de Negocio — Detalle (45 transacciones)</div>
+    <table class="data" cellpadding="0" cellspacing="0">
+      <tr>
+        <th class="th">Fecha</th>
+        <th class="th">Descripción</th>
+        <th class="th">Fuente</th>
+        <th class="th th-r">Monto</th>
+      </tr>
+      <tr><td class="td">12/28/2025</td><td class="td">Patreon Inc</td><td class="td" style="color:#888">Banco</td><td class="td amt" style="color:#059669">+$940.00</td></tr>
+      <tr><td class="td">12/15/2025</td><td class="td">Stripe Transfer</td><td class="td" style="color:#888">Banco</td><td class="td amt" style="color:#059669">+$1,280.00</td></tr>
+      <tr><td class="td">12/01/2025</td><td class="td">OnlyFans — Pago mensual</td><td class="td" style="color:#888">Banco</td><td class="td amt" style="color:#059669">+$2,100.00</td></tr>
+      <tr><td class="td">11/28/2025</td><td class="td">Patreon Inc</td><td class="td" style="color:#888">Banco</td><td class="td amt" style="color:#059669">+$940.00</td></tr>
+      <tr><td class="td">11/20/2025</td><td class="td">Venmo — @clienteA propina</td><td class="td" style="color:#888">Venmo</td><td class="td amt" style="color:#059669">+$150.00</td></tr>
+      <tr><td class="td">11/15/2025</td><td class="td">Stripe Transfer</td><td class="td" style="color:#888">Banco</td><td class="td amt" style="color:#059669">+$1,100.00</td></tr>
+      <tr><td class="td">11/01/2025</td><td class="td">OnlyFans — Pago mensual</td><td class="td" style="color:#888">Banco</td><td class="td amt" style="color:#059669">+$1,850.00</td></tr>
+      <tr><td class="td">10/28/2025</td><td class="td">Patreon Inc</td><td class="td" style="color:#888">Banco</td><td class="td amt" style="color:#059669">+$875.00</td></tr>
+      <tr><td class="td">10/15/2025</td><td class="td">PayPal — Zelle de @clienteB</td><td class="td" style="color:#888">PayPal</td><td class="td amt" style="color:#059669">+$300.00</td></tr>
+      <tr><td class="td">10/01/2025</td><td class="td">OnlyFans — Pago mensual</td><td class="td" style="color:#888">Banco</td><td class="td amt" style="color:#059669">+$1,760.00</td></tr>
+      <tr><td class="td" colspan="3" style="color:#999;font-size:10px;padding-top:8px">… y 35 transacciones más</td><td class="td amt" style="color:#059669">+$7,045.00</td></tr>
+      <tr class="tot">
+        <td></td><td></td>
+        <td class="amt" style="color:#999;font-size:11px;font-weight:normal">Total ingresos</td>
+        <td class="amt" style="color:#059669">+$18,340.00</td>
+      </tr>
+    </table>
+
+    <!-- Expense detail -->
+    <div class="sec">Gastos de Negocio — Detalle (28 transacciones)</div>
+    <table class="data" cellpadding="0" cellspacing="0">
+      <tr>
+        <th class="th">Fecha</th>
+        <th class="th">Descripción</th>
+        <th class="th">Fuente</th>
+        <th class="th th-r">Monto</th>
+      </tr>
+      <tr><td class="td">12/20/2025</td><td class="td">Adobe Creative Cloud</td><td class="td" style="color:#888">Tarjeta</td><td class="td amt" style="color:#DC2626">-$59.99</td></tr>
+      <tr><td class="td">12/18/2025</td><td class="td">Ring Light — Amazon</td><td class="td" style="color:#888">Tarjeta</td><td class="td amt" style="color:#DC2626">-$89.00</td></tr>
+      <tr><td class="td">12/10/2025</td><td class="td">Canva Pro</td><td class="td" style="color:#888">Tarjeta</td><td class="td amt" style="color:#DC2626">-$12.99</td></tr>
+      <tr><td class="td">12/05/2025</td><td class="td">Zoom Pro — mes</td><td class="td" style="color:#888">Tarjeta</td><td class="td amt" style="color:#DC2626">-$14.99</td></tr>
+      <tr><td class="td">11/20/2025</td><td class="td">Adobe Creative Cloud</td><td class="td" style="color:#888">Tarjeta</td><td class="td amt" style="color:#DC2626">-$59.99</td></tr>
+      <tr><td class="td">11/12/2025</td><td class="td">Micrófono Blue Yeti — B&amp;H</td><td class="td" style="color:#888">Tarjeta</td><td class="td amt" style="color:#DC2626">-$129.00</td></tr>
+      <tr><td class="td">11/05/2025</td><td class="td">Google Drive 2TB</td><td class="td" style="color:#888">Tarjeta</td><td class="td amt" style="color:#DC2626">-$9.99</td></tr>
+      <tr><td class="td" colspan="3" style="color:#999;font-size:10px;padding-top:8px">… y 21 transacciones más</td><td class="td amt" style="color:#DC2626">-$2,838.55</td></tr>
+      <tr class="tot">
+        <td></td><td></td>
+        <td class="amt" style="color:#999;font-size:11px;font-weight:normal">Total gastos</td>
+        <td class="amt" style="color:#DC2626">-$3,214.50</td>
+      </tr>
+    </table>
+
+    <!-- Footer -->
+    <div class="foot">
+      Tajada organiza tus transacciones en categorías compatibles con el Schedule C del IRS. Este reporte no constituye asesoramiento fiscal. La responsabilidad de presentar declaraciones precisas es del contribuyente o su preparador autorizado. Generado con Tajada · tajada.soporte@gmail.com
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>

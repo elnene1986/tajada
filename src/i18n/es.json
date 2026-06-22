@@ -351,5 +351,7 @@
   "disclaimer.bodyPre": "Tajada organiza tus transacciones para que tu contador las pueda usar. ",
   "disclaimer.bodyBold": "Tajada no es un preparador de impuestos",
   "disclaimer.bodyPost": " y no presenta declaraciones ante el IRS. La responsabilidad de presentar declaraciones precisas es tuya o de tu contador autorizado.",
-  "disclaimer.cta": "Entendido"
+  "disclaimer.cta": "Entendido",
+
+  "paywall.seeExample": "Ver ejemplo de reporte →"
 }
