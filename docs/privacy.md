@@ -68,7 +68,7 @@ Si cambiamos esta política en una versión futura de Tajada, actualizaremos la 
 
 Para preguntas sobre privacidad o sobre cómo Tajada maneja tus datos:
 
-**Correo:** hola@tajada.app
+**Correo:** tajada.soporte@gmail.com
 
 ## Avisos legales
 

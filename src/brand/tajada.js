@@ -17,7 +17,7 @@ export default {
   // UI language for this build. Tajada is Spanish-only — no toggle.
   locale: 'es',
 
-  supportEmail: 'hola@tajada.app',
+  supportEmail: 'tajada.soporte@gmail.com',
 
   // ===================================================================
   // PLACEHOLDER PALETTE — DESIGN REVIEW NEEDED

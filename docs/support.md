@@ -1,6 +1,6 @@
 # Soporte de Tajada
 
-¿Tienes una pregunta o problema con Tajada? Aquí están las respuestas a las preguntas más comunes. Si no encuentras lo que buscas, escríbenos a **hola@tajada.app**.
+¿Tienes una pregunta o problema con Tajada? Aquí están las respuestas a las preguntas más comunes. Si no encuentras lo que buscas, escríbenos a **tajada.soporte@gmail.com**.
 
 ## Preguntas frecuentes
 
@@ -74,6 +74,6 @@ Si encontraste un error en la app, escríbenos con:
 
 ## Contacto
 
-**Correo:** hola@tajada.app
+**Correo:** tajada.soporte@gmail.com
 
 Respondemos en español o inglés, normalmente dentro de 48 horas.

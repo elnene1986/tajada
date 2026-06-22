@@ -107,7 +107,7 @@ PRIVACIDAD
 • Cero rastreo: no usamos análisis, ni cookies, ni identificadores publicitarios.
 • Cero ventas de datos: no podemos vender lo que no tenemos.
 
-¿Preguntas? Escríbenos a hola@tajada.app
+¿Preguntas? Escríbenos a tajada.soporte@gmail.com
 ```
 
 **Count:** 2,847 / 4,000 chars ✓
@@ -125,7 +125,7 @@ Structure follows App Store best practices:
 
 Tajada es una app de impuestos diseñada para creadores hispanohablantes que reciben pagos como 1099 en Estados Unidos. Importa tus estados de cuenta, clasifica tus comercios una vez, y exporta un PDF listo para tu contador con todo organizado según el Schedule C.
 
-¿Una plataforma que Tajada no reconoce? ¿Una categoría que falta? Escríbenos a hola@tajada.app — Tajada se mejora con lo que nos cuentan los creadores.
+¿Una plataforma que Tajada no reconoce? ¿Una categoría que falta? Escríbenos a tajada.soporte@gmail.com — Tajada se mejora con lo que nos cuentan los creadores.
 ```
 
 **Count:** 461 / 4,000 chars ✓
@@ -229,7 +229,7 @@ PRIVACY
 • No tracking — no analytics, cookies, or ad identifiers.
 • No data sales — we can't sell what we don't have.
 
-Questions? hola@tajada.app
+Questions? tajada.soporte@gmail.com
 ```
 
 **Count:** 2,178 / 4,000 chars ✓

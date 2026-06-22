@@ -85,7 +85,7 @@ Print this and tick as you go. Items marked **(blocker)** must be done before th
 - [ ] Category: Finance
 - [ ] Tags: as listed in the doc
 - [ ] **(blocker)** Privacy Policy URL — host first
-- [ ] **(blocker)** Support email: `hola@tajada.app`
+- [x] **(blocker)** Support email: `tajada.soporte@gmail.com` ✓
 
 ### Data safety form
 - [ ] Walk through the form using the answers in `play-store-listing.md` Data Safety section

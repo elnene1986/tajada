@@ -37,7 +37,7 @@ Under "Data collected" check: nothing. Under "Data shared" check: nothing.
 
 - **Privacy Policy URL:** `https://<your-host>/privacy`
 - **Website:** `https://tajada.app` (or leave blank)
-- **Support email:** `hola@tajada.app` (Play REQUIRES this; URL is optional)
+- **Support email:** `tajada.soporte@gmail.com` (Play REQUIRES this; URL is optional)
 
 ---
 
@@ -99,7 +99,7 @@ PRIVACIDAD
 • Cero rastreo: no usamos análisis, ni cookies, ni identificadores publicitarios.
 • Cero ventas de datos.
 
-Soporte: hola@tajada.app
+Soporte: tajada.soporte@gmail.com
 ```
 
 **Count:** 2,447 / 4,000 chars ✓
@@ -162,7 +162,7 @@ PRIVACY
 • No tracking — no analytics, cookies, or ad identifiers.
 • No data sales.
 
-Support: hola@tajada.app
+Support: tajada.soporte@gmail.com
 ```
 
 **Count:** 1,856 / 4,000 chars ✓
