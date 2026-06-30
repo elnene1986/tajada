@@ -12,7 +12,6 @@
 
     "preview": {
       "distribution": "internal",
-      "channel": "preview",
       "ios": {
         "resourceClass": "m-medium",
         "simulator": false
@@ -37,14 +36,11 @@
   "submit": {
     "production": {
       "ios": {
-        "_TODO_ascAppId":     "TODO: Apple → App Store Connect → Tajada app → App Information → Apple ID (numeric).  Replace ascAppId below.",
-        "_TODO_appleTeamId":  "TODO: Apple → developer.apple.com → Membership → Team ID (10 chars). Replace appleTeamId below.",
         "appleId": "elnenecarambola@gmail.com",
         "ascAppId": "REPLACE_WITH_TAJADA_ASC_APP_ID",
         "appleTeamId": "REPLACE_WITH_APPLE_TEAM_ID"
       },
       "android": {
-        "_TODO_serviceAccount": "TODO: Google Play Console → Setup → API access → create + download service account JSON, place at ./play-service-account.json (and add to .gitignore).",
         "serviceAccountKeyPath": "./play-service-account.json",
         "track": "internal"
       }

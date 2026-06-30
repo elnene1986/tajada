@@ -75,5 +75,10 @@ module.exports = {
       ],
     ],
     scheme: 'tajada',
+    extra: {
+      eas: {
+        projectId: '39ac0969-1845-4c37-83f0-157adc6d4744',
+      },
+    },
   },
 };
