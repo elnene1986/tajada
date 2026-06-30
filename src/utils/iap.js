@@ -70,9 +70,15 @@ export var resetProviderForTesting = resetProvider;
 async function tryLoadReal() {
   var RNIap;
   try {
-    // Dynamic require so Expo Go doesn't try to resolve the native
-    // side at bundle load. `require` (not import) keeps this lazy.
-    RNIap = require('react-native-iap');
+    // INDIRECT require (via a variable) so Metro doesn't statically
+    // resolve react-native-iap at bundle time. This keeps the module
+    // truly OPTIONAL: builds that ship without it (e.g. the preparer
+    // demo build, which drops the library to dodge its RN-0.81
+    // incompatibility) still bundle, and at runtime the absent module
+    // throws here → we fall back to the stub. When react-native-iap is
+    // installed (production), this resolves normally.
+    var moduleName = 'react-native-iap';
+    RNIap = require(moduleName);
   } catch (e) {
     return null;
   }

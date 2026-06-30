@@ -73,6 +73,9 @@ module.exports = {
           cameraPermission: 'Tajada usa la cámara para que tomes fotos de tus recibos. Las imágenes se guardan solo en tu dispositivo.',
         },
       ],
+      // Local plugin: selects the Play Store flavor of react-native-iap
+      // so the Android release build doesn't fail on variant ambiguity.
+      './plugins/withIapStoreFlavor',
     ],
     scheme: 'tajada',
     extra: {

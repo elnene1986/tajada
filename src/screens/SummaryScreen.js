@@ -13,6 +13,7 @@ import { estimateTaxes, fractionToPct, getTaxPrefs, setFedRate, FED_RATE_PRESETS
 import { enableReminders, disableReminders, getReminderPrefs, nextDueDate, formatDueDate } from '../utils/quarterlyReminders';
 import { getHomeOffice, setHomeOfficeSqft, deductionCents as homeOfficeDeduction, MAX_SQFT } from '../utils/homeOffice';
 import Paywall from '../components/Paywall';
+import { DEMO_BUILD } from '../config/demo';
 import { colors } from '../theme';
 import brand from '../brand';
 // `t` is the transactions array in this screen, so the i18n helper is
@@ -115,6 +116,9 @@ export default function SummaryScreen({ navigation, route }) {
   // in a check via this. If unlocked, run immediately. If not, stash
   // a re-run callback in pendingExport and open the paywall.
   var withUnlock = async function(action) {
+    // Demo builds bypass the paywall so a reviewer can see the real
+    // export. See src/config/demo.js (must be false for production).
+    if (DEMO_BUILD) { action(); return; }
     var unlocked = await isUnlocked();
     if (unlocked) { action(); return; }
     pendingExport.current = action;
