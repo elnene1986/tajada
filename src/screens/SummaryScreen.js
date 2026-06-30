@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, Alert, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, Alert, ScrollView, Switch, TextInput } from 'react-native';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -8,7 +8,10 @@ import { categoryByKey } from '../utils/categories';
 import { sourceLabel } from '../parsers';
 import { isUnlocked } from '../utils/unlock';
 import { getMileageState, totalMiles, totalDeduction, entriesForYear } from '../utils/mileage';
-import { fmtCents, centsToFixedString } from '../utils/money';
+import { fmtCents, centsToFixedString, dollarsToCents } from '../utils/money';
+import { estimateTaxes, fractionToPct, getTaxPrefs, setFedRate, FED_RATE_PRESETS, DEFAULT_FED_RATE, TAX_YEAR } from '../utils/taxEstimate';
+import { enableReminders, disableReminders, getReminderPrefs, nextDueDate, formatDueDate } from '../utils/quarterlyReminders';
+import { getHomeOffice, setHomeOfficeSqft, deductionCents as homeOfficeDeduction, MAX_SQFT } from '../utils/homeOffice';
 import Paywall from '../components/Paywall';
 import { colors } from '../theme';
 import brand from '../brand';
@@ -60,10 +63,36 @@ export default function SummaryScreen({ navigation, route }) {
   // and inside the exported PDF.
   var [mileage, setMileage] = useState({ miles: 0, deduction: 0, count: 0, rate: 0.70, year: new Date().getFullYear() });
 
+  // Federal marginal rate used by the tax-set-aside estimator. Loaded
+  // from the persisted preference; the user can change it via the rate
+  // chips on the estimate card and the choice sticks across sessions.
+  var [fedRate, setFedRateState] = useState(DEFAULT_FED_RATE);
+
+  // Quarterly estimated-tax reminders (local notifications). `busy`
+  // guards the toggle while permission/scheduling is in flight.
+  var [remindersOn, setRemindersOn] = useState(false);
+  var [reminderBusy, setReminderBusy] = useState(false);
+
+  // Home-office simplified deduction. The square footage is held as a
+  // string for the text input; the deduction is derived from it.
+  var [homeSqft, setHomeSqft] = useState('');
+
   useEffect(function() { load(); }, [sessionId]);
   var load = async function() {
     var all = await getSessions();
     setSession(all.find(function(x) { return x.id === sessionId; }) || null);
+    try {
+      var prefs = await getTaxPrefs();
+      setFedRateState(prefs.fedRate);
+    } catch (e) { /* non-fatal — keep the default rate */ }
+    try {
+      var rp = await getReminderPrefs();
+      setRemindersOn(rp.enabled);
+    } catch (e) { /* non-fatal — toggle stays off */ }
+    try {
+      var ho = await getHomeOffice();
+      setHomeSqft(ho.sqft > 0 ? String(ho.sqft) : '');
+    } catch (e) { /* non-fatal — input stays empty */ }
     // Load the mileage for this session's tax year. Treat the
     // session as a single-year artifact for now; multi-year sessions
     // would need year-bucketing, which we can add when we have a
@@ -116,7 +145,62 @@ export default function SummaryScreen({ navigation, route }) {
   var net = totInc - totExp;
   var exInc = t.filter(function(x) { return x.type === 'credit' && !x.isBusiness; }).reduce(function(s,x) { return s+x.amountCents; }, 0);
   var exExp = t.filter(function(x) { return x.type === 'debit' && !x.isBusiness; }).reduce(function(s,x) { return s+x.amountCents; }, 0);
-  var taxYear = '2025';
+  // Single source of truth — see src/utils/taxEstimate.js (TAX_YEAR).
+  var taxYear = String(TAX_YEAR);
+
+  // Tax set-aside estimate. Net profit for Schedule C is business
+  // income minus business expenses minus the above-the-line Schedule C
+  // deductions (mileage, line 9; home office, line 30). mileage.deduction
+  // is a float dollar value from the mileage subsystem, so convert to
+  // cents; the home-office deduction is already integer cents.
+  var mileageDeductionCents = dollarsToCents(mileage.deduction);
+  var homeOfficeCents = homeOfficeDeduction(homeSqft);
+  var netForTaxCents = net - mileageDeductionCents - homeOfficeCents;
+  var estimate = estimateTaxes(netForTaxCents, fedRate);
+  var estimatePct = fractionToPct(estimate.fraction);
+
+  // Persist the square footage when the user finishes editing the input.
+  var commitHomeSqft = async function() {
+    try {
+      var saved = await setHomeOfficeSqft(homeSqft);
+      // Reflect the clamp (e.g. 400 → 300) back into the field.
+      setHomeSqft(saved.sqft > 0 ? String(saved.sqft) : '');
+    } catch (e) { /* in-memory value stands */ }
+  };
+
+  var changeFedRate = async function(rate) {
+    setFedRateState(rate);
+    try { await setFedRate(rate); } catch (e) { /* in-memory value stands */ }
+  };
+
+  // Suggested per-quarter installment = current set-aside estimate ÷ 4.
+  var perQuarterCents = Math.round(estimate.totalCents / 4);
+  var nextDue = nextDueDate(new Date());
+
+  var toggleReminders = async function(value) {
+    if (reminderBusy) return;
+    setReminderBusy(true);
+    try {
+      if (value) {
+        var res = await enableReminders(perQuarterCents);
+        if (res.ok) {
+          setRemindersOn(true);
+        } else {
+          setRemindersOn(false);
+          if (res.reason === 'denied') {
+            Alert.alert(tr('reminders.deniedTitle'), tr('reminders.deniedBody'));
+          }
+        }
+      } else {
+        await disableReminders();
+        setRemindersOn(false);
+      }
+    } catch (e) {
+      setRemindersOn(false);
+    } finally {
+      setReminderBusy(false);
+    }
+  };
 
   var sources = [];
   var seenSrc = {};
@@ -245,6 +329,31 @@ export default function SummaryScreen({ navigation, route }) {
           + '</div>'
         ) : '')
 
+      // Home office — Schedule C Line 30 (simplified method). Only
+      // printed when the user entered square footage.
+      + (homeOfficeCents > 0 ? (
+          '<div class="sec">' + tr('homeOffice.pdfTitle') + '</div>'
+          + '<div class="ex">'
+          + '<div class="ex-row" style="font-size:13px;color:#111;font-weight:600">'
+          + tr('homeOffice.pdfLine', { sqft: Math.min(parseInt(homeSqft, 10) || 0, MAX_SQFT), amount: fmt(homeOfficeCents) })
+          + '</div>'
+          + '<div class="ex-row" style="margin-top:6px">' + tr('homeOffice.pdfNote') + '</div>'
+          + '</div>'
+        ) : '')
+
+      // Tax set-aside estimate — informational, clearly labeled as an
+      // estimate (not a return, not advice). Only printed when there's
+      // positive net profit to tax.
+      + (estimate.totalCents > 0 ? (
+          '<div class="sec">' + tr('summary.pdfEstimateTitle') + '</div>'
+          + '<table cellpadding="0" cellspacing="0" style="width:100%">'
+          + '<tr><td class="td">' + tr('summary.pdfEstimateSeTax') + '</td><td class="td amt">' + fmt(estimate.seTaxCents) + '</td></tr>'
+          + '<tr><td class="td">' + tr('summary.pdfEstimateFedTax', { pct: Math.round(estimate.fedRate * 100) }) + '</td><td class="td amt">' + fmt(estimate.fedTaxCents) + '</td></tr>'
+          + '<tr class="tot"><td>' + tr('summary.pdfEstimateTotal') + '</td><td class="amt" style="color:#C99A2C">' + fmt(estimate.totalCents) + '</td></tr>'
+          + '</table>'
+          + '<div class="ex-row" style="margin-top:8px;font-size:10px;color:#999">' + tr('summary.pdfEstimateDisclaimer') + '</div>'
+        ) : '')
+
       // Schedule C-ready category breakdown
       + (incGroups.length > 0 ? (
           '<div class="sec">' + tr('summary.pdfIncomeByCategory') + '</div>'
@@ -333,7 +442,12 @@ export default function SummaryScreen({ navigation, route }) {
 
   return (
     <SafeAreaView style={s.container}>
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 60 }}>
+      <ScrollView
+        contentContainerStyle={{ padding: 20, paddingBottom: 60 }}
+        keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets={true}
+        contentInsetAdjustmentBehavior="automatic"
+      >
         <Text style={s.title}>{tr('summary.title')}</Text>
         <Text style={s.sub}>{tr('summary.sub', { name: session.name, count: t.length })}</Text>
 
@@ -355,6 +469,103 @@ export default function SummaryScreen({ navigation, route }) {
             <Text style={s.gridSub}>{tr('home.txnCount', { count: bExp.length })}</Text>
           </View>
         </View>
+
+        {/* Home-office simplified deduction (Schedule C line 30). Sits
+            above the estimate so adding square footage visibly lowers
+            the set-aside. */}
+        <View style={s.hoCard}>
+          <Text style={s.hoTitle}>{tr('homeOffice.title')}</Text>
+          <Text style={s.hoPrompt}>{tr('homeOffice.prompt')}</Text>
+          <View style={s.hoInputRow}>
+            <TextInput
+              style={s.hoInput}
+              value={homeSqft}
+              onChangeText={setHomeSqft}
+              onEndEditing={commitHomeSqft}
+              onBlur={commitHomeSqft}
+              keyboardType="number-pad"
+              placeholder={tr('homeOffice.inputPlaceholder')}
+              placeholderTextColor={colors.textFaint}
+              maxLength={3}
+              returnKeyType="done"
+            />
+            <Text style={s.hoUnit}>{tr('homeOffice.unit')}</Text>
+          </View>
+          {homeOfficeCents > 0 ? (
+            <View style={s.hoResult}>
+              <Text style={s.hoDeduction}>{tr('homeOffice.deduction', { amount: fmt(homeOfficeCents) })}</Text>
+              <Text style={s.hoFormula}>{tr('homeOffice.formula', { sqft: Math.min(parseInt(homeSqft, 10) || 0, MAX_SQFT) })}</Text>
+            </View>
+          ) : null}
+          <Text style={s.hoDisclaimer}>{tr('homeOffice.disclaimer')}</Text>
+        </View>
+
+        {/* Tax set-aside estimator — the "how much do I owe?" answer.
+            SE tax is computed precisely; the federal portion uses the
+            user-adjustable marginal rate chips below. Only shown when
+            there's positive net profit to tax. */}
+        {estimate.totalCents > 0 ? (
+          <View style={s.estCard}>
+            <Text style={s.estTitle}>{tr('estimate.title')}</Text>
+            <Text style={s.estBig}>{tr('estimate.setAside', { amount: fmt(estimate.totalCents) })}</Text>
+            <Text style={s.estPct}>{tr('estimate.pctOfNet', { pct: estimatePct })}</Text>
+
+            <View style={s.estRow}>
+              <Text style={s.estRowLabel}>{tr('estimate.seTax')}</Text>
+              <Text style={s.estRowVal}>{fmt(estimate.seTaxCents)}</Text>
+            </View>
+            <View style={s.estRow}>
+              <Text style={s.estRowLabel}>{tr('estimate.fedTax')}</Text>
+              <Text style={s.estRowVal}>{fmt(estimate.fedTaxCents)}</Text>
+            </View>
+
+            <Text style={s.estRateLabel}>{tr('estimate.fedRateLabel')}</Text>
+            <View style={s.estChips}>
+              {FED_RATE_PRESETS.map(function(r) {
+                var active = Math.abs(r - fedRate) < 0.0001;
+                return (
+                  <TouchableOpacity
+                    key={r}
+                    style={[s.estChip, active ? s.estChipOn : null]}
+                    onPress={function() { changeFedRate(r); }}
+                  >
+                    <Text style={[s.estChipTxt, active ? s.estChipTxtOn : null]}>{Math.round(r * 100)}%</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <Text style={s.estDisclaimer}>{tr('estimate.disclaimer')}</Text>
+          </View>
+        ) : null}
+
+        {/* Quarterly estimated-tax reminders — local notifications at
+            the four IRS installment deadlines. Coupled to the estimate
+            so we have a per-quarter amount to suggest. */}
+        {estimate.totalCents > 0 ? (
+          <View style={s.remCard}>
+            <View style={s.remHeadRow}>
+              <View style={{ flex: 1, paddingRight: 12 }}>
+                <Text style={s.remTitle}>{tr('reminders.title')}</Text>
+                {nextDue ? (
+                  <Text style={s.remNext}>{tr('reminders.next', { date: formatDueDate(nextDue.date) })}</Text>
+                ) : null}
+                <Text style={s.remAmt}>{tr('reminders.perQuarter', { amount: fmt(perQuarterCents) })}</Text>
+                <Text style={s.remBased}>{tr('reminders.basedOn')}</Text>
+              </View>
+              <Switch
+                value={remindersOn}
+                onValueChange={toggleReminders}
+                disabled={reminderBusy}
+                trackColor={{ true: colors.accent, false: colors.cardBorder }}
+                thumbColor={'#FFFFFF'}
+              />
+            </View>
+            {remindersOn && nextDue ? (
+              <Text style={s.remOnHint}>{tr('reminders.onHint', { date: formatDueDate(nextDue.date) })}</Text>
+            ) : null}
+          </View>
+        ) : null}
 
         {bySource.length > 1 && (
           <View style={s.sourceCard}>
@@ -396,6 +607,13 @@ export default function SummaryScreen({ navigation, route }) {
             </Text>
           </View>
         )}
+
+        <TouchableOpacity
+          style={s.reconcileBtn}
+          onPress={function() { navigation.navigate('Reconcile1099', { recordedIncomeCents: totInc }); }}
+        >
+          <Text style={s.reconcileBtnTxt}>{tr('summary.reconcileBtn')}</Text>
+        </TouchableOpacity>
 
         <View style={s.exportRow}>
           <TouchableOpacity style={s.pdfBtn} onPress={function() { withUnlock(exportPDF); }}>
@@ -451,6 +669,39 @@ var s = StyleSheet.create({
   mileageTitle: { fontSize: 10, color: colors.incomeLabel, textTransform: 'uppercase', letterSpacing: 1, fontWeight: '700', marginBottom: 6 },
   mileageLine: { fontSize: 14, color: colors.textPrimary, fontWeight: '700' },
   mileageNote: { fontSize: 11, color: colors.textSecondary, marginTop: 4, lineHeight: 15 },
+  estCard: { backgroundColor: colors.card, borderRadius: 12, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: colors.accent },
+  estTitle: { fontSize: 10, color: colors.textFaint, textTransform: 'uppercase', letterSpacing: 1, fontWeight: '700' },
+  estBig: { fontSize: 28, fontWeight: '700', color: colors.accent, marginTop: 4 },
+  estPct: { fontSize: 12, color: colors.textSecondary, marginTop: 2, marginBottom: 10 },
+  estRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 5, borderTopWidth: 1, borderTopColor: colors.cardBorder },
+  estRowLabel: { fontSize: 13, color: colors.textSecondary, flex: 1, paddingRight: 8 },
+  estRowVal: { fontSize: 13, fontWeight: '600', color: colors.textPrimary },
+  estRateLabel: { fontSize: 10, color: colors.textFaint, textTransform: 'uppercase', letterSpacing: 1, fontWeight: '700', marginTop: 12, marginBottom: 6 },
+  estChips: { flexDirection: 'row', flexWrap: 'wrap' },
+  estChip: { paddingVertical: 6, paddingHorizontal: 14, borderRadius: 100, borderWidth: 1, borderColor: colors.cardBorder, marginRight: 8, marginBottom: 4 },
+  estChipOn: { backgroundColor: colors.accent, borderColor: colors.accent },
+  estChipTxt: { fontSize: 13, fontWeight: '600', color: colors.textSecondary },
+  estChipTxtOn: { color: colors.accentText },
+  estDisclaimer: { fontSize: 10, color: colors.textFaint, marginTop: 12, lineHeight: 14 },
+  remCard: { backgroundColor: colors.card, borderRadius: 12, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: colors.cardBorder },
+  remHeadRow: { flexDirection: 'row', alignItems: 'center' },
+  remTitle: { fontSize: 10, color: colors.textFaint, textTransform: 'uppercase', letterSpacing: 1, fontWeight: '700' },
+  remNext: { fontSize: 14, color: colors.textPrimary, fontWeight: '600', marginTop: 4 },
+  remAmt: { fontSize: 13, color: colors.accent, fontWeight: '700', marginTop: 2 },
+  remBased: { fontSize: 11, color: colors.textFaint, marginTop: 2 },
+  remOnHint: { fontSize: 11, color: colors.textSecondary, marginTop: 10, lineHeight: 15 },
+  hoCard: { backgroundColor: colors.card, borderRadius: 12, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: colors.cardBorder },
+  hoTitle: { fontSize: 10, color: colors.textFaint, textTransform: 'uppercase', letterSpacing: 1, fontWeight: '700' },
+  hoPrompt: { fontSize: 13, color: colors.textSecondary, marginTop: 6, lineHeight: 18 },
+  hoInputRow: { flexDirection: 'row', alignItems: 'center', marginTop: 10 },
+  hoInput: { flex: 1, backgroundColor: colors.screenBg, borderRadius: 8, borderWidth: 1, borderColor: colors.cardBorder, paddingHorizontal: 12, paddingVertical: 10, fontSize: 16, color: colors.textPrimary },
+  hoUnit: { fontSize: 13, color: colors.textFaint, marginLeft: 10 },
+  hoResult: { marginTop: 12 },
+  hoDeduction: { fontSize: 16, fontWeight: '700', color: colors.accent },
+  hoFormula: { fontSize: 11, color: colors.textSecondary, marginTop: 2 },
+  hoDisclaimer: { fontSize: 10, color: colors.textFaint, marginTop: 12, lineHeight: 14 },
+  reconcileBtn: { backgroundColor: colors.card, borderRadius: 8, padding: 13, alignItems: 'center', marginBottom: 10, borderWidth: 1, borderColor: colors.accent },
+  reconcileBtnTxt: { fontSize: 13, fontWeight: '700', color: colors.accent },
   exportRow: { flexDirection: 'row', marginBottom: 8 },
   pdfBtn: { flex: 1, backgroundColor: colors.accent, borderRadius: 8, padding: 14, alignItems: 'center', marginRight: 4 },
   csvBtn: { flex: 1, backgroundColor: colors.strongBtn, borderRadius: 8, padding: 14, alignItems: 'center', marginLeft: 4 },

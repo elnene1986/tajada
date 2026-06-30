@@ -91,6 +91,30 @@ export function fmtCentsK(cents) {
   return fmtCents(c);
 }
 
+// Live formatting for a money TEXT INPUT as the user types. Keeps only
+// digits and a single decimal point, trims leading zeros, caps the
+// decimal at 2 places, and adds thousands separators to the whole-dollar
+// part so "10000" shows as "10,000" and "1234.5" as "1,234.5". The
+// result is still safe to pass to parseToCents (which strips commas), so
+// the stored value is unaffected.
+export function formatAmountInput(text) {
+  if (text == null) return '';
+  var s = String(text).replace(/[^0-9.]/g, '');
+  if (!s) return '';
+  // Collapse any extra dots — keep only the first.
+  var firstDot = s.indexOf('.');
+  if (firstDot !== -1) {
+    s = s.slice(0, firstDot + 1) + s.slice(firstDot + 1).replace(/\./g, '');
+  }
+  var parts = s.split('.');
+  var intPart = parts[0].replace(/^0+(?=\d)/, ''); // drop leading zeros
+  var intFmt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  if (parts.length > 1) {
+    return (intFmt || '0') + '.' + parts[1].slice(0, 2);
+  }
+  return intFmt;
+}
+
 // Pure-numeric two-decimal output used inside the CSV export, where
 // we want "9.99" without the dollar sign so the column stays numeric
 // when opened in Excel / Google Sheets.

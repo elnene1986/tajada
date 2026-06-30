@@ -151,7 +151,12 @@ export default function MileageScreen() {
 
   return (
     <SafeAreaView style={s.container}>
-      <ScrollView contentContainerStyle={{ paddingBottom: 60 }}>
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: 60 }}
+        keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets={true}
+        contentInsetAdjustmentBehavior="automatic"
+      >
         <View style={s.padded}>
           <Text style={s.title}>{t('mileage.title')}</Text>
           <Text style={s.subtitle}>{t('mileage.subtitle')}</Text>

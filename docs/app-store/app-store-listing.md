@@ -72,7 +72,7 @@ Notes:
 ## Description
 
 ```
-Tajada es la app de impuestos diseñada específicamente para creadores hispanohablantes en Estados Unidos que reciben pagos como 1099 — de OnlyFans, Patreon, Stripe, Venmo, PayPal, Twitch, YouTube, TikTok, Etsy, Substack y más.
+Tajada es la app de impuestos diseñada específicamente para creadores hispanohablantes en Estados Unidos que reciben pagos como 1099 — de Patreon, Stripe, Substack, Venmo, PayPal, Twitch, YouTube, TikTok, Etsy, OnlyFans y más.
 
 ¿CÓMO FUNCIONA?
 
@@ -147,6 +147,8 @@ Tajada is an on-device tax-organization tool for Spanish-speaking 1099 filers in
 
 — The app does NOT prepare or file taxes. It organizes transactions into Schedule C categories and generates a PDF/CSV for the user's tax preparer. This is stated explicitly in-app and in the description.
 
+— Tajada is a tax-categorization tool that supports many creator platforms, including some that host adult content. Tajada itself contains no adult material. The user's transaction data (amounts, dates, merchant names) is processed entirely on-device and never transmitted.
+
 If you have any questions during review, please contact:
 Pablo Varona — elnenecarambola@gmail.com
 
@@ -194,7 +196,7 @@ Tajada reads your Stripe, Patreon, OnlyFans and Venmo payouts and sorts them int
 ## Description (English)
 
 ```
-Tajada is the tax-organization app built specifically for U.S.-based Spanish-speaking creators who get paid as 1099 contractors — from OnlyFans, Patreon, Stripe, Venmo, PayPal, Twitch, YouTube, TikTok, Etsy, Substack, and more.
+Tajada is the tax-organization app built specifically for U.S.-based Spanish-speaking creators who get paid as 1099 contractors — from Patreon, Stripe, Substack, Venmo, PayPal, Twitch, YouTube, TikTok, Etsy, OnlyFans, and more.
 
 HOW IT WORKS
 

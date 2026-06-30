@@ -25,6 +25,7 @@ import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
 import { getSessions, setAllSessions } from '../utils/storage';
 import { getRules, setAllRules } from '../utils/rules';
+import { gatherReceiptsForBackup, restoreReceiptsFromBackup } from '../utils/receipts';
 import {
   createBackup, restoreBackup, inspectBackup,
   validatePassphrase, passphraseStrength, MIN_PASSPHRASE_LENGTH,
@@ -87,10 +88,16 @@ export default function BackupScreen({ navigation }) {
       // Gather all on-device state in one snapshot. The hint is
       // stored in the envelope (cleartext) so the user can see it
       // when they're trying to remember the passphrase.
+      var snapshotSessions = await getSessions();
+      // Bundle the receipt image bytes (base64, keyed by filename) so a
+      // restore on a new device can rebuild them instead of leaving
+      // dangling file references. Omitted if there are no receipts.
+      var receipts = await gatherReceiptsForBackup(snapshotSessions);
       var state = {
-        sessions: await getSessions(),
+        sessions: snapshotSessions,
         rules: await getRules(),
         hint: hint ? String(hint).slice(0, 80) : undefined,
+        receipts: Object.keys(receipts).length ? receipts : undefined,
       };
       var envelope = await createBackup(state, pass);
 
@@ -178,7 +185,11 @@ export default function BackupScreen({ navigation }) {
           { text: t('common.cancel'), style: 'cancel' },
           { text: t('backup.confirmReplaceConfirm'), style: 'destructive', onPress: async function() {
             try {
-              await setAllSessions(sessions);
+              // Rebuild receipt image files on this device and re-point
+              // each transaction's receiptUri at the local copy. No-op
+              // for backups that predate receipts (v1).
+              var sessionsToWrite = await restoreReceiptsFromBackup(sessions, state.receipts);
+              await setAllSessions(sessionsToWrite);
               await setAllRules(rules);
               setRestorePass('');
               setPendingRestore(null);

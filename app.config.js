@@ -52,6 +52,28 @@ module.exports = {
     web: {
       favicon: './assets/favicon.png',
     },
+    // expo-notifications powers the on-device quarterly estimated-tax
+    // reminders. Tajada schedules LOCAL notifications only (no push
+    // server, no tokens) — the plugin sets up the Android notification
+    // channel/icon and the iOS scheduling entitlement. No push
+    // credentials are required because nothing is sent from a server.
+    //
+    // expo-image-picker powers receipt photos. The plugin injects the
+    // iOS usage strings (NSPhotoLibraryUsageDescription /
+    // NSCameraUsageDescription) — re-added here now that the feature
+    // actually exercises them (the audit had removed the bare
+    // declaration to avoid a 5.1.1 rejection). Receipts are copied into
+    // the app's private document directory; nothing is uploaded.
+    plugins: [
+      'expo-notifications',
+      [
+        'expo-image-picker',
+        {
+          photosPermission: 'Tajada usa tus fotos para que adjuntes recibos a tus transacciones. Las imágenes se guardan solo en tu dispositivo.',
+          cameraPermission: 'Tajada usa la cámara para que tomes fotos de tus recibos. Las imágenes se guardan solo en tu dispositivo.',
+        },
+      ],
+    ],
     scheme: 'tajada',
   },
 };

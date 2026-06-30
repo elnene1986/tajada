@@ -15,6 +15,8 @@ Cuando usas Tajada, la app procesa los siguientes datos **únicamente en tu disp
 - Las categorías que asignas a cada transacción
 - La marca de si completaste la pantalla de bienvenida
 - La fecha de tu último respaldo cifrado
+- Las fotos de recibos que decidas adjuntar a una transacción (se guardan en una carpeta privada dentro de la app)
+- Tus preferencias de estimación de impuestos, recordatorios trimestrales, oficina en casa y formularios 1099-K que ingreses manualmente
 
 Toda esta información se guarda en el almacenamiento privado de la app dentro de tu teléfono. No se transmite a Tajada ni a ningún otro servicio.
 
@@ -53,8 +55,10 @@ Tajada solicita los siguientes permisos:
 
 - **Acceso a archivos:** para que tú puedas seleccionar e importar tus estados de cuenta cuando lo desees. No leemos archivos sin tu acción explícita.
 - **Compartir:** para abrir el menú de exportación cuando exportas un PDF, CSV o respaldo.
+- **Cámara y fotos:** solo si decides adjuntar la foto de un recibo a una transacción. La imagen se copia a una carpeta privada dentro de la app, en tu teléfono. **No se sube a ningún servidor ni se transmite a nadie.** Si no usas la función de recibos, nunca se solicita este permiso.
+- **Notificaciones:** solo si activas los recordatorios de impuestos trimestrales. Son notificaciones **locales** programadas en tu teléfono (sin servidor de envío y sin identificadores) que te avisan antes de cada fecha límite del IRS. Puedes desactivarlas cuando quieras.
 
-Tajada **no solicita** acceso a tu cámara, micrófono, ubicación, contactos, calendario, ni notificaciones push.
+Tajada **no solicita** acceso a tu micrófono, ubicación, contactos ni calendario. Las fotos de recibos y las notificaciones descritas arriba son opcionales y solo se activan por tu propia acción.
 
 ## Niños
 

@@ -25,12 +25,20 @@
 // FILE FORMAT (versioned envelope, JSON-shaped for portability):
 //   {
 //     format: 'tajada-backup',
-//     schemaVersion: 1,
+//     schemaVersion: 2,
 //     createdAt: ISO 8601,
 //     kdf:     { algo: 'pbkdf2-sha256', iterations, salt: base64(16B) },
 //     cipher:  { algo: 'aes-256-gcm',   nonce: base64(12B) },
 //     payload: base64(ciphertext + GCM auth tag),
 //   }
+//
+// The encrypted payload (decrypted `state`) is:
+//   { sessions, rules, hint?, receipts? }
+// where `receipts` (added in schemaVersion 2) is a { filename: base64 }
+// map of the receipt image bytes referenced by transactions, so a
+// restore on a new device can rebuild the images instead of leaving
+// dangling file references. Backups without it (v1) restore fine — the
+// receipts step is simply skipped.
 
 import { gcm } from '@noble/ciphers/aes.js';
 import { pbkdf2 } from '@noble/hashes/pbkdf2.js';
@@ -38,7 +46,7 @@ import { sha256 } from '@noble/hashes/sha2.js';
 import * as Crypto from 'expo-crypto';
 
 export var BACKUP_FORMAT = 'tajada-backup';
-export var SCHEMA_VERSION = 1;
+export var SCHEMA_VERSION = 2;
 var PBKDF2_ITERATIONS = 250000;
 var SALT_BYTES = 16;
 var NONCE_BYTES = 12;
@@ -151,7 +159,10 @@ export function inspectBackup(envelopeJson) {
   catch (e) { throw new Error('invalid_backup_file'); }
   if (!env || typeof env !== 'object') throw new Error('invalid_backup_file');
   if (env.format !== BACKUP_FORMAT) throw new Error('not_a_tajada_backup');
-  if (env.schemaVersion !== SCHEMA_VERSION) {
+  // Accept any schema we know how to read (1..SCHEMA_VERSION). Older
+  // backups restore fine — newer fields (e.g. receipts in v2) are simply
+  // absent. Only a version NEWER than this build is unsupported.
+  if (typeof env.schemaVersion !== 'number' || env.schemaVersion < 1 || env.schemaVersion > SCHEMA_VERSION) {
     var e = new Error('unsupported_schema_version');
     e.found = env.schemaVersion;
     e.expected = SCHEMA_VERSION;

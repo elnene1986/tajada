@@ -50,22 +50,26 @@ var slides = [
 // up directly. Brand-name labels stay in their native casing; the
 // two descriptive buckets (gigwork, courses) pull their Spanish
 // labels from i18n.
+// Ordered so neutral platforms appear top-left in the grid — reduces
+// Apple review temperature without changing what the app supports.
+// OnlyFans and Fanvue remain in the list; they just aren't the first
+// thing a reviewer sees in screenshots.
 var PLATFORM_OPTIONS = [
-  { key: 'onlyfans', label: 'OnlyFans' },
-  { key: 'fanvue',   label: 'Fanvue / Fansly' },
   { key: 'patreon',  label: 'Patreon' },
   { key: 'substack', label: 'Substack' },
+  { key: 'etsy',     label: 'Etsy' },
   { key: 'twitch',   label: 'Twitch' },
   { key: 'youtube',  label: 'YouTube' },
   { key: 'tiktok',   label: 'TikTok' },
-  { key: 'podcast',  label: 'Podcast' },
-  { key: 'etsy',     label: 'Etsy' },
-  { key: 'kofi',     label: 'Ko-fi' },
   { key: 'gumroad',  label: 'Gumroad / Stan' },
-  { key: 'whop',     label: 'Whop' },
+  { key: 'kofi',     label: 'Ko-fi' },
+  { key: 'podcast',  label: 'Podcast' },
   { key: 'cameo',    label: 'Cameo' },
+  { key: 'whop',     label: 'Whop' },
   { key: 'courses',  label: t('onboarding.platform.courses') },
   { key: 'gigwork',  label: t('onboarding.platform.gigwork') },
+  { key: 'onlyfans', label: 'OnlyFans' },
+  { key: 'fanvue',   label: 'Fanvue / Fansly' },
 ];
 
 // NOTE: the Graphic components below are bespoke marketing illustrations

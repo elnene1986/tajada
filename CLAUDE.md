@@ -2,7 +2,16 @@
 
 **What this is.** Tajada is a React Native (Expo) on-device tax-sorting app for US-based Spanish-speaking creators. Forked from SplitLedger; single-brand Spanish-only project. Free to import / classify / review; paid one-time IAP ($14.99) to export PDF or CSV for a contador.
 
-**Last session checkpoint:** 2026-06-21 (marketing strategy + Phase 2 quick wins). This session: picked support email (`tajada.soporte@gmail.com`, replaced across all files), pushed landing page live at `https://elnene1986.github.io/tajada/`, implemented first-launch tax disclaimer modal (`src/components/DisclaimerModal.js`), and added paywall sample export preview (`docs/sample-export.html` + "Ver ejemplo" link in `Paywall.js`). Phase 2 remaining blockers: ToS and OnlyFans repositioning decision.
+**Last session checkpoint:** 2026-06-29 (customer-value feature build, COMPLETE). Built 7 features in priority order, smoke-testing after each. ALL DONE: #1 tax-owed "set aside" estimator, #2 quarterly estimated-tax reminders, #3 home-office simplified deduction, #4 inline deductible tips, #5 1099-K reconciliation, #6 receipt photos, #7 automated parser/tax tests. #1–#3, #5, #6 smoke-tested on device. Details in "What the 2026-06-29 session built" below.
+
+**Native deps added this session (both installed):** `expo-notifications@~0.32.17` (#2) and `expo-image-picker@~17.0.10` (#6). `jest-expo`/`jest` added as devDeps (#7). If `node_modules` is ever rebuilt from scratch, run `npm install` then `npx expo start -c`.
+
+**Session-end notes (2026-06-30):**
+- **Plan: show the product to Pablo's tax preparer (contador) FIRST, then do Termly/ToS.** A private feedback demo isn't public distribution, so the missing ToS doesn't block it. Goal of the demo: get the contador's feedback on whether the Schedule C category buckets + export format match how they actually want to receive a client's year. Their pushback = product input. ToS remains the real blocker for public App Store launch only.
+- **Builds to show it:** `eas.json` already has a `preview` profile → Android **APK** (`buildType: apk`, easy to sideload/hand off) and an internal iOS build. Commands (run on Pablo's Mac, can't run in the assistant sandbox): `npm i -g eas-cli && eas login`, then `eas build -p android --profile preview` for the APK. iOS needs TestFlight (`production` profile + `eas submit`, requires the `REPLACE_WITH_*` App Store Connect values) or ad-hoc (`eas device:create` + `preview`). Quickest iOS demo = run live on device via Expo Go. Note: `preview` includes `react-native-iap`, so the paywall hits the real store (no sandbox purchase unless StoreKit/Play testing is set up).
+- **App-icon redesign was explored then DISREGARDED** — no icon files changed; `assets/icon.png` etc. untouched. (Concepts discussed: rounded gold folded corner + a two-tone Fraunces "t" that's paper on the ink body and ink where it crosses the fold. Revisit only if Pablo asks.)
+
+Prior checkpoint: 2026-06-22 (OnlyFans repositioning). That session: chose split approach — soften App Store listing/screenshots, keep OnlyFans prominent in app and marketing. Changes: reordered `PLATFORM_OPTIONS` in `OnboardingScreen.js` (Patreon/Substack/Etsy now top-left), updated opening paragraph of both Spanish and English descriptions in `docs/app-store/app-store-listing.md` to lead with neutral platforms, added pre-emptive adult-content note to App Review Notes section. Phase 2 remaining blocker: ToS decision only.
 
 ## Live URLs
 
@@ -34,7 +43,7 @@ These came out of the audit. Code work is blocked on each until Pablo decides.
 - [ ] **Decide on Terms of Service.** Audit found ZERO ToS exists. For a paid app handling tax-relevant data, this is real liability. Three paths: Termly self-serve ($10–15/mo, generates tax-app-tailored ToS), a one-shot indie template from a lawyer ($300–800), or roll your own. Recommended: Termly. Once you have the text, mirror to `docs/terms.md` so GH Pages serves it alongside privacy/support. Then add a ToS URL to the App Store listing and a footer link on the landing page.
 - [x] **First-launch tax-advice disclaimer modal** — DONE 2026-06-21: `src/components/DisclaimerModal.js` + wired into `App.js`. Shows once after onboarding (or on first launch for existing users). Writes `disclaimer_seen.flag`. 5 new i18n keys (`disclaimer.*`). See "What the 2026-06-21 session built" below.
 - [x] **Paywall PDF preview** — DONE 2026-06-21: `docs/sample-export.html` live at `https://elnene1986.github.io/tajada/sample-export.html`. "Ver ejemplo de reporte →" link added to `Paywall.js` above the price block.
-- [ ] **OnlyFans repositioning in App Store listing.** Audit found OnlyFans is named in 14 places across listings, screenshots, landing, and privacy. Not an auto-reject but raises Apple review temperature. Recommended adjustment: reorder `PLATFORM_OPTIONS` in `src/screens/OnboardingScreen.js` so the screenshot of the picker doesn't put OnlyFans top-left; rewrite the opening paragraph of `docs/app-store/app-store-listing.md` (line 51) to lead with neutral platforms (Patreon, Stripe, Substack, Twitch, Etsy); pre-empt in App Review Notes ("Tajada is a tax-categorization tool that supports many creator platforms, including some that host adult content. Tajada itself contains no adult material."). Editorial — needs Pablo's call on aggressiveness.
+- [x] **OnlyFans repositioning in App Store listing** — DONE 2026-06-22: split approach chosen (soften listing/screenshots, keep OF prominent in app + marketing). `PLATFORM_OPTIONS` reordered in `OnboardingScreen.js` (Patreon/Substack/Etsy top-left). Opening paragraph of both Spanish and English descriptions updated to lead with neutral platforms. Pre-emptive adult-content note added to App Review Notes in `app-store-listing.md`.
 
 ### Phase 3 — App Store Connect setup (~60 min)
 
@@ -111,6 +120,128 @@ These came out of the audit. Code work is blocked on each until Pablo decides.
 - [ ] **Receipt photos** — future feature. `expo-image-picker`. When you wire it up, **add `NSPhotoLibraryUsageDescription` back to `app.config.js`** — it was removed this session because the audit caught it declared without being used (App Store guideline 5.1.1 rejection trigger).
 
 ---
+
+## What the 2026-06-29 session built (customer-value features — in progress)
+
+Plan: 7 features in priority order, checkpoint after each. Hybrid tax math chosen (precise SE tax + adjustable federal rate, no personal-data collection). On-device only, integer cents, i18n through `t()` — same patterns as the rest of the app.
+
+### #1 — Tax-owed "set aside" estimator (DONE)
+
+Answers the creator's real question ("how much do I owe?"), not just totals.
+
+- **New `src/utils/taxEstimate.js`** — pure math + a tiny persisted pref.
+  - `estimateTaxes(netProfitCents, fedRate)` → `{ seTaxCents, fedTaxCents, totalCents, fraction, fedRate }`, all integer cents. SE tax computed precisely: 15.3% (12.4% SS capped at the `$176,100` 2025 wage base + 2.9% uncapped Medicare) on 92.35% of net profit. Federal portion = chosen marginal rate applied to net profit minus the half-SE-tax deduction. Returns all zeros for net ≤ 0.
+  - `fractionToPct(fraction)`, `FED_RATE_PRESETS` (`0.10/0.12/0.22/0.24`), `DEFAULT_FED_RATE` (`0.12`), `TAX_YEAR` (2025).
+  - `getTaxPrefs()` / `setFedRate(rate)` — persist the user's federal-rate chip choice to `tajada_tax_prefs.json` via `writeAtomic` (cleartext, no transaction data — same pattern as `backupMeta.js`).
+  - **2025 constants are named + dated at the top** — annual bump is a one-line change (SS wage base, presets).
+- **`src/screens/SummaryScreen.js`** — imports the estimator + `dollarsToCents`. Loads the persisted fed rate in `load()`. Computes net-for-tax as `net − dollarsToCents(mileage.deduction)` (mileage is an above-the-line Schedule C deduction; still float dollars in its own subsystem, so converted to cents here). Renders an **"Aparta para impuestos"** card under the income/expense grid: big saffron set-aside figure, "≈X% de tu ganancia neta", SE + federal breakdown rows, tappable federal-rate chips (persist on tap), and a disclaimer. Card only shows when `totalCents > 0`. Also adds a clearly-labeled **estimate section to the exported PDF** (SE + federal + total + "no es asesoría fiscal" disclaimer), printed only when net profit is positive.
+- **i18n** — 14 new keys: `estimate.*` (9, on-screen card) + `summary.pdfEstimate*` (5, PDF). es.json now **348 keys**.
+- **Verified.** Math unit-checked against hand-computed values (SS wage-base cap engages at high net, half-SE deduction, zero/negative net → zeros, all outputs integer). `@babel/parser` parses both edited files clean. Not yet run in Expo Go — that's the smoke test for this checkpoint.
+
+Smoke test for #1: open a reviewed session in Summary with positive net business profit → the saffron set-aside card appears; tapping 10/12/22/24% updates the federal line + total and the choice survives a reload; the exported PDF shows the estimate section. With zero/negative net the card and PDF section are absent.
+
+✅ #1 smoke-tested on device 2026-06-29: card renders, math correct ($15,766.33 net → $3,986.02 set-aside / 25%), PDF estimate section confirmed via export.
+
+### #2 — Quarterly estimated-tax reminders (DONE, needs `npx expo install expo-notifications`)
+
+On-device LOCAL notifications (no push server, no tokens) at the four federal estimated-tax deadlines, carrying the suggested per-quarter set-aside.
+
+- **New dependency:** `expo-notifications@~0.32.16` (SDK 54 pin). Added to `package.json` + `plugins: ['expo-notifications']` in `app.config.js`. **Must `npx expo install expo-notifications` before the next reload** — the module is statically imported, so Metro won't bundle without it. Expo Go runs the permission/toggle flow but notification DELIVERY is best verified in a dev build.
+- **New `src/utils/quarterlyReminders.js`:**
+  - `quarterlyDueDates(taxYear)` → Apr 15 / Jun 15 / Sep 15 / Jan 15(next yr). `upcomingDueDates(from)` → next ≤4 installments after `from`, spans the year boundary. `nextDueDate(from)`, `formatDueDate(date)` → "15 de junio de 2026" (hardcoded Spanish months, same reason as money.js — RN Intl is patchy).
+  - `enableReminders(perQuarterCents)` requests permission, cancels existing, schedules a 9 AM local DATE-trigger notification on each upcoming deadline, persists prefs to `tajada_reminders.json` (via `writeAtomic`). `disableReminders()`, `getReminderPrefs()`. All notification calls wrapped in try/catch so Expo Go limits / denied permission degrade gracefully instead of crashing.
+  - Sets a foreground `setNotificationHandler` (quiet banner, no sound/badge).
+- **`SummaryScreen.js`** — a "Recordatorios trimestrales" card under the estimate card (only when net profit > 0): next due date, suggested per-quarter amount (`estimate.totalCents / 4`, labeled "Basado en tu estimación actual ÷ 4"), and a `Switch`. Toggling on requests permission + schedules; denial shows an Alert and leaves the switch off. State loaded in `load()` and persists.
+- **i18n** — 10 new `reminders.*` keys. es.json now **358 keys**.
+- **Verified.** Due-date logic unit-tested incl. the December→January year boundary (enabling in Dec correctly surfaces the upcoming Jan 15). `@babel/parser` parses SummaryScreen + the new module clean. Notification delivery itself not yet exercised (needs the install + ideally a dev build).
+
+Smoke test for #2 (after `npx expo install expo-notifications` + Metro restart): open Summary with positive net → "Recordatorios trimestrales" card shows the next IRS deadline + per-quarter amount; flip the switch on → iOS asks for notification permission, switch stays on, hint line appears; reopen Summary → switch remembers it's on; flip off → cancels. Full delivery test needs a dev build.
+
+✅ #2 smoke-tested on device 2026-06-29: card shows next deadline (15 sep 2026) + $996.51/quarter, switch enables with permission grant and persists.
+
+### #3 — Home-office simplified deduction (DONE)
+
+IRS simplified method (Schedule C line 30): flat $5/sqft of space used regularly + exclusively for business, capped at 300 sqft = $1,500. One square-footage input, real money off taxable income — and it feeds the #1 estimate live.
+
+- **New `src/utils/homeOffice.js`:** `deductionCents(sqft)` → integer cents, clamps to `MAX_SQFT` (300) and floors fractional sqft ($5/sqft is exact dollars so cents stay clean: sqft × 500). `RATE_CENTS_PER_SQFT` (500), `MAX_SQFT` (300), `MAX_DEDUCTION_CENTS` ($1,500). `getHomeOffice()` / `setHomeOfficeSqft(sqft)` persist a single annual value to `tajada_home_office.json` via `writeAtomic` (stored globally like mileage, surfaced per-session).
+- **`SummaryScreen.js`** — an "Oficina en casa" input card placed ABOVE the estimate card (so adding sqft visibly lowers the set-aside). `TextInput` (number-pad, max 3 chars) persists on blur/end-edit and reflects the clamp (e.g. 400 → 300) back into the field. Shows the deduction + formula when sqft > 0, plus the regular-and-exclusive-use disclaimer. The deduction is subtracted from `netForTaxCents` alongside mileage, so the estimator already accounts for it. Also adds a **Schedule C Line 30 section to the PDF** (printed only when sqft > 0).
+- **i18n** — 11 new keys: `homeOffice.*` (8 screen + 3 PDF). es.json now **369 keys**.
+- **Verified.** `deductionCents` unit-tested (100/250 sqft, 300-cap, 400→clamped $1,500, zero/negative/NaN → 0, fractional floor, integer output). `@babel/parser` parses both edited files clean.
+
+Smoke test for #3: open Summary with positive net → "Oficina en casa" card above the estimate; type e.g. 120 → "Deducción: $600.00" appears and the set-aside figure drops; type 400 → field snaps to 300 and deduction shows $1,500; value persists across reload; exported PDF shows the "Oficina en casa (Schedule C Línea 30)" section. Empty/0 sqft → no deduction line, no PDF section.
+
+### #4 — Inline "is this deductible?" education (DONE)
+
+Contextual one-line tips at classification time, so creators stop leaving deductions on the table because they don't know a ring light or an editing subscription is an ordinary-and-necessary business expense.
+
+- **`src/utils/categories.js`** — new `categoryTip(key)` helper: looks up `catTip.<categoryKey>` in i18n, returns `''` when absent (so the UI renders nothing). Pure, no new deps.
+- **`src/screens/ReviewScreen.js`** — in the classify modal's category picker, a tip line renders under the chips for the currently-selected category and updates live as the user taps a different chip. Sits right below the existing "✨ Sugerencia automática" provenance hint.
+- **i18n** — 15 new `catTip.*` keys, one per Schedule C category (6 income + 9 expense). Income tips note what's reportable (gross, before fees; tips/donations are taxable); expense tips give concrete examples (platform fees 100% deductible, gear/Section 179, 50% business meals, $600+ contractor → 1099). es.json now **384 keys**.
+- **Verified.** Coverage-checked: all 15 category keys have a tip. `@babel/parser` parses ReviewScreen + categories.js clean.
+
+Smoke test for #4: in Review, tap a transaction → "Marcar como negocio" → the category picker shows; tapping each category chip shows its tip below; the tip changes as you switch chips and disappears for any category without one (all 15 have one). Personal classification shows no tip.
+
+### #5 — 1099-K reconciliation (DONE)
+
+Surfaces the gross-vs-net trap: platforms file Form 1099-K with the IRS for GROSS volume (before their fees); the creator only sees net deposits. Under-report → CP2000 mismatch notice; over-report the gross without deducting fees → overpay. This shows the gap.
+
+- **New `src/utils/reconcile1099.js`:** persisted list of `{ id, issuer, grossCents }` in `tajada_1099k.json` (via `writeAtomic`). `get1099Entries()`, `save1099Entry()`, `delete1099Entry()`, `total1099Cents()`, and `reconcile(recordedIncomeCents, entries)` → `{ grossCents, recordedCents, deltaCents, covered }`. Integer cents; `parseToCents` at the input boundary.
+- **New `src/screens/Reconcile1099Screen.js`** (mirrors MileageScreen): comparison card (recorded income vs total 1099-K gross vs delta), a green "covered" / amber "shortfall" verdict banner with guidance (fees-before-deposit vs missing imports), and an add/edit/delete list of 1099-K entries (issuer + gross). Registered in `App.js` as `Reconcile1099` (`nav.reconcile` = "1099-K").
+- **`SummaryScreen.js`** — a saffron-outlined **"Conciliar 1099-K"** button above the export row navigates to the screen, passing the session's recorded business income (`totInc`) for the comparison. Recorded figure is labeled "en esta sesión" since it's per-session (same scoping caveat as mileage/home-office).
+- **i18n** — `nav.reconcile` + 27 `reconcile.*`/`summary.reconcileBtn` keys. es.json now **413 keys**.
+- **Verified.** `reconcile`/`total1099Cents` unit-tested (covered, shortfall, empty, missing recorded). All four touched files + App.js parse clean.
+
+Smoke test for #5: Summary (positive net) → tap "Conciliar 1099-K" → add a 1099-K (e.g. Stripe $10,000) → comparison card shows recorded vs gross vs delta; if recorded ≥ gross → green "covered" banner, else amber "shortfall" with the dollar gap; tap an entry to edit, long-press to delete; entries persist across reloads.
+
+### #6 — Receipt photos (DONE, needs `npx expo install expo-image-picker`)
+
+Audit substantiation: attach a photo of the receipt to a transaction so a questioned deduction has evidence. On-device only — the image is copied into the app's private dir, never uploaded.
+
+- **New dependency:** `expo-image-picker@~17.0.10` (SDK 54 pin). Added to `package.json`. **Must `npx expo install expo-image-picker` + restart Metro before the next reload** (static `import * as ImagePicker` in `src/utils/receipts.js`).
+- **`app.config.js`** — re-added the iOS usage strings via the `expo-image-picker` config plugin (`photosPermission` + `cameraPermission`, Spanish copy). The audit had removed the bare `NSPhotoLibraryUsageDescription` to dodge a 5.1.1 rejection; it's justified now that a feature uses it. Receipts are copied to `documentDirectory/receipts/`; nothing is uploaded.
+- **New `src/utils/receipts.js`:** `captureReceipt(txnId)` (camera) / `pickReceipt(txnId)` (library) request permission, launch the picker at `quality: 0.5`, and copy the chosen asset into `documentDirectory/receipts/r_<txnId>_<ts>.<ext>`, returning the permanent local URI. `deleteReceiptFile(uri)` (best-effort, never throws). All return `{ ok, uri?, reason? }` so the UI distinguishes denied / canceled / error.
+- **`src/screens/ReviewScreen.js`** — each transaction row gets a small 📎 button (saffron when a receipt is attached, faint otherwise). Tapping with no receipt → "Tomar foto / Elegir de la galería" action sheet; with a receipt → "Ver / Reemplazar / Quitar". A full-screen viewer Modal shows the image (tap to dismiss). The receipt is stored as `receiptUri` on the transaction and persisted via the existing `save(u)` path. Replacing deletes the old file; removing confirms first.
+- **Transaction schema** — new optional `receiptUri` field (local file URI). No migration needed; storage persists whatever's on the transaction. Backups will carry the URI but not the image bytes (a restore on a new device would have a dangling URI — noted for future: bundle receipts into the encrypted backup).
+- **i18n** — 16 new `receipt.*` keys. es.json now **427 keys**.
+- **Verified.** ReviewScreen + receipts.js + app.config.js parse clean; `app.config.js` loads with both plugins registered. Picker flow itself needs the install + a device to exercise camera/library.
+
+Smoke test for #6 (after `npx expo install expo-image-picker` + `npx expo start -c`): Review → tap the 📎 on any transaction → "Tomar foto" or "Elegir de la galería" → grant permission → pick an image → the 📎 turns saffron; tap it again → "Ver recibo" opens the full-screen image; "Quitar recibo" removes it after confira. Receipt survives leaving and returning to the session.
+
+### #7 — Automated tests (DONE)
+
+The app had zero tests; bank/platform CSV format drift could silently drop rows (under-reported income/deductions) with no error. This adds a Jest safety net.
+
+- **Tooling:** `jest` + `jest-expo` (~54.0.17) as devDeps; `"test": "jest"` script + a `jest` config block (preset `jest-expo`, RN-aware `transformIgnorePatterns`) in `package.json`. Run with `npm test`.
+- **`src/__tests__/money.test.js`** — `parseToCents` (the string→cents chokepoint: `$`/comma stripping, parens-negative, float-drift rounding, NaN guards), `fmtCents`/`fmtCentsK`/`centsToFixedString`, and `formatAmountInput` (the live comma formatter).
+- **`src/__tests__/parsers.test.js`** — `detectFormat` across OFX/Venmo/PayPal/Capital One/Chase/generic; `parseCapitalOne` (credit/debit, integer-cents, abs-value-with-sign-in-type, UTF-8 BOM strip, empty-on-no-header); `parseVenmo` (keeps only completed payments, skips transfers + non-complete); `parseFile` dispatch shape `{ format, source, transactions }`.
+- **`src/__tests__/taxUtils.test.js`** — `estimateTaxes` (hand-computed $24k case, zero/negative net, SS wage-base cap, integer outputs, default rate), `homeOffice.deductionCents` (cap/clamp/floor/guards), `reconcile1099` (totals, covered/shortfall), `quarterlyReminders.upcomingDueDates`/`formatDueDate` (incl. Dec→Jan boundary).
+- **Result:** 40 tests, 3 suites, all green. (Benign console.warn from expo-notifications about Expo Go push — local-only usage, not an error.)
+
+### Ship-audit fixes (2026-06-29, after the 7 features)
+
+Ran the ship-audit skill over the session's changes. Fixed three quick wins:
+
+- **Privacy-policy drift (was a contradiction).** `docs/privacy.md` previously claimed Tajada doesn't access camera/photos/notifications — false once #2 and #6 shipped. Updated the "Permisos del sistema" and "Qué información maneja" sections: camera/photos used only for on-device receipts (never uploaded), local notifications used only for opt-in quarterly reminders. **Re-publish GH Pages** (it serves `docs/privacy.md`).
+- **TAX_YEAR single source of truth.** Removed the hard-coded `taxYear = '2025'` literal in `SummaryScreen.js`; it now imports `TAX_YEAR` from `taxEstimate.js`. Added an "ANNUAL ROLLOVER CHECKLIST" comment at the top of `taxEstimate.js` listing every per-year constant + file (TAX_YEAR, SS wage base, fed presets, mileage rate).
+- **`npm audit fix`** (non-breaking) — dropped 20 vulns → 14 (cleared the 1 critical + 2 highs; remaining 1 high/13 moderate are deep in the Expo/Metro **dev/build** toolchain, not the shipped RN bundle, and need `--force`/breaking bumps not worth taking now). Tests still 40/40 green.
+
+Audit items still open (not fixed — need your decisions): **Terms of Service still doesn't exist** (top legal gap, carried over); and a one-time professional check on whether an in-app SE/federal tax estimate triggers any state tax-preparer disclosure (low risk given the consistent "no asesoría fiscal" framing).
+
+### Receipts-in-backup fix (2026-06-29, post-audit)
+
+Closed the audit's "dangling receipt on restore" gap. **Backup schema bumped to v2.**
+
+- **`src/utils/receipts.js`** — `gatherReceiptsForBackup(sessions)` reads every referenced receipt into a `{ filename: base64 }` map (unreadable files skipped); `restoreReceiptsFromBackup(sessions, receipts)` writes the bytes into this device's `receipts/` dir and re-points each `receiptUri` at the local copy; `rebaseReceiptUris(sessions, names, dir)` is the pure rebasing core (unit-tested); `RECEIPTS_DIR` + `receiptBasename()` exported.
+- **`src/utils/backup.js`** — `SCHEMA_VERSION = 2`; the encrypted payload now carries an optional `receipts` map. `inspectBackup` now accepts any schema `1..SCHEMA_VERSION` (older test backups still restore; only NEWER-than-build is rejected). Format comment updated.
+- **`src/screens/BackupScreen.js`** — create gathers receipts into the snapshot (omitted when none); restore calls `restoreReceiptsFromBackup` before `setAllSessions`, so the images land on disk and URIs are rebased.
+- **Caveat:** receipts are base64 in the JSON payload, so a library of large photos makes a bigger backup file (encrypted in memory). Fine at realistic creator scale; revisit (size cap / chunking) if it ever bites.
+- **Tests:** `src/__tests__/receipts.test.js` covers `receiptBasename` + `rebaseReceiptUris` (re-point known, leave unknown, map-or-array input, no input mutation). Suite now **45 tests, 4 suites, green.**
+
+Smoke test: attach a receipt → create a backup → delete the app data (or restore on another device/sim) → restore the backup → the 📎 shows saffron and "Ver recibo" opens the image (not a broken reference).
+
+### New storage files this session
+
+- `tajada_tax_prefs.json` (#1, federal-rate pref), `tajada_reminders.json` (#2, reminder state), `tajada_home_office.json` (#3, square footage), `tajada_1099k.json` (#5, 1099-K entries). All cleartext, no transaction data, written via `writeAtomic` — same pattern as `backupMeta.js`.
 
 ## What the 2026-06-21 session built (marketing strategy + Phase 2 quick wins)
 

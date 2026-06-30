@@ -54,3 +54,17 @@ export function categoryLabel(key) {
 export function defaultCategoryKey(type) {
   return type === 'credit' ? 'platform_payouts' : 'other_expense';
 }
+
+// Short, plain-language "what belongs here / is this deductible?" tip
+// for a category, shown at classification time. The educational value
+// is the point: most creators leave deductions on the table because
+// they don't realize ordinary purchases (ring lights, editing software,
+// a co-working day pass) are ordinary-and-necessary business expenses.
+// Keyed by the stable category key; returns '' if there's no tip so the
+// UI can render nothing.
+export function categoryTip(key) {
+  if (!key) return '';
+  var v = t('catTip.' + key);
+  // t() returns the key itself when missing — treat that as "no tip".
+  return v === 'catTip.' + key ? '' : v;
+}

@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { View, Text, TouchableOpacity, FlatList, TextInput, StyleSheet, SafeAreaView, Modal, Animated, Alert, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, FlatList, TextInput, StyleSheet, SafeAreaView, Modal, Animated, Alert, ScrollView, Image } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { getSessions, saveSession } from '../utils/storage';
 import { parseFile, sourceLabel } from '../parsers';
 import { merchantKey, saveRule, getRules, applyRules } from '../utils/rules';
 import { suggestForTransactions } from '../utils/categorizer';
-import { categoriesForType, defaultCategoryKey, categoryLabel } from '../utils/categories';
+import { categoriesForType, defaultCategoryKey, categoryLabel, categoryTip } from '../utils/categories';
+import { captureReceipt, pickReceipt, deleteReceiptFile } from '../utils/receipts';
 import { fmtCents, fmtCentsK } from '../utils/money';
 import { colors } from '../theme';
 import { t } from '../i18n';
@@ -45,6 +46,7 @@ export default function ReviewScreen({ navigation, route }) {
   var [tab, setTab] = useState('income');
   var [search, setSearch] = useState('');
   var [modal, setModal] = useState(null);
+  var [receiptView, setReceiptView] = useState(null);
   var [undo, setUndo] = useState(null);
   var [adding, setAdding] = useState(false);
   var undoOp = useRef(new Animated.Value(0)).current;
@@ -168,6 +170,62 @@ export default function ReviewScreen({ navigation, route }) {
     setTxns(u); save(u);
   };
 
+  // ─── Receipt photos ──────────────────────────────────────────────
+  // A receipt attaches to a single transaction (audit substantiation).
+  // Separate from classify: the small 📎 button on each row opens these
+  // options; the chosen image is copied to the app's private dir and its
+  // local URI stored on the transaction as `receiptUri`.
+  var setReceiptOnTxn = function(id, uri) {
+    var u = txns.map(function(t) { return t.id === id ? Object.assign({}, t, { receiptUri: uri }) : t; });
+    setTxns(u); save(u);
+  };
+
+  var handleReceiptResult = function(item, r) {
+    if (r.ok) {
+      if (item.receiptUri) deleteReceiptFile(item.receiptUri); // replacing
+      setReceiptOnTxn(item.id, r.uri);
+    } else if (r.reason === 'denied') {
+      Alert.alert(t('receipt.deniedTitle'), t('receipt.deniedBody'));
+    } else if (r.reason === 'error') {
+      Alert.alert(t('receipt.errorTitle'), r.message || t('common.unknownError'));
+    }
+    // 'canceled' → no-op
+  };
+
+  var doCapture = async function(item) { handleReceiptResult(item, await captureReceipt(item.id)); };
+  var doPick = async function(item) { handleReceiptResult(item, await pickReceipt(item.id)); };
+
+  var chooseSource = function(item) {
+    Alert.alert(t('receipt.optionsTitle'), t('receipt.optionsBody'), [
+      { text: t('receipt.take'), onPress: function() { doCapture(item); } },
+      { text: t('receipt.choose'), onPress: function() { doPick(item); } },
+      { text: t('common.cancel'), style: 'cancel' },
+    ]);
+  };
+
+  var removeReceipt = function(item) {
+    Alert.alert(t('receipt.removeTitle'), t('receipt.removeBody'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('common.delete'), style: 'destructive', onPress: function() {
+        deleteReceiptFile(item.receiptUri);
+        setReceiptOnTxn(item.id, null);
+      } },
+    ]);
+  };
+
+  var openReceiptOptions = function(item) {
+    if (item.receiptUri) {
+      Alert.alert(t('receipt.optionsTitle'), t('receipt.optionsBodyAttached'), [
+        { text: t('receipt.view'), onPress: function() { setReceiptView(item.receiptUri); } },
+        { text: t('receipt.replace'), onPress: function() { chooseSource(item); } },
+        { text: t('receipt.remove'), style: 'destructive', onPress: function() { removeReceipt(item); } },
+        { text: t('common.cancel'), style: 'cancel' },
+      ]);
+    } else {
+      chooseSource(item);
+    }
+  };
+
   var toggle = function(t) {
     var nv = !t.isBusiness;
     var sim = getSimilar(t);
@@ -286,6 +344,13 @@ export default function ReviewScreen({ navigation, route }) {
                   )}
                 </View>
               </View>
+              <TouchableOpacity
+                style={[s.receiptBtn, item.receiptUri && s.receiptBtnOn]}
+                onPress={function() { openReceiptOptions(item); }}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Text style={[s.receiptBtnTxt, item.receiptUri && s.receiptBtnTxtOn]}>📎</Text>
+              </TouchableOpacity>
               <Text style={[s.txnAmt, { color: item.isBusiness ? (tab==='income' ? colors.incomeStrong : colors.expenseTabStrong) : colors.excludedCheck }]}>{fmt(item.amountCents)}</Text>
             </TouchableOpacity>
           );
@@ -303,6 +368,16 @@ export default function ReviewScreen({ navigation, route }) {
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* Receipt viewer */}
+      <Modal visible={!!receiptView} transparent animationType="fade" onRequestClose={function() { setReceiptView(null); }}>
+        <TouchableOpacity style={s.receiptOverlay} activeOpacity={1} onPress={function() { setReceiptView(null); }}>
+          {receiptView ? (
+            <Image source={{ uri: receiptView }} style={s.receiptImage} resizeMode="contain" />
+          ) : null}
+          <Text style={s.receiptClose}>{t('common.done')}</Text>
+        </TouchableOpacity>
+      </Modal>
 
       {/* Bulk modal */}
       <Modal visible={!!modal} transparent animationType="fade" onRequestClose={function() { setModal(null); }}>
@@ -342,6 +417,12 @@ export default function ReviewScreen({ navigation, route }) {
                     );
                   })}
                 </ScrollView>
+                {/* Inline deductible tip — explains what belongs in the
+                    selected category. Educational: helps creators catch
+                    deductions they'd otherwise miss. */}
+                {categoryTip(modal.category) ? (
+                  <Text style={s.catTip}>{categoryTip(modal.category)}</Text>
+                ) : null}
               </View>
             )}
 
@@ -399,6 +480,14 @@ var s = StyleSheet.create({
   catSection: { marginBottom: 16 },
   catLabel: { fontSize: 11, color: colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8, fontWeight: '600' },
   catSuggestHint: { fontSize: 11, color: colors.ruleText, backgroundColor: colors.ruleBg, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4, marginBottom: 8, overflow: 'hidden', alignSelf: 'flex-start' },
+  catTip: { fontSize: 12, color: colors.textSecondary, lineHeight: 17, marginTop: 10 },
+  receiptBtn: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', marginRight: 8, backgroundColor: colors.chipBg, borderWidth: 1, borderColor: colors.cardBorder },
+  receiptBtnOn: { backgroundColor: colors.accent, borderColor: colors.accent },
+  receiptBtnTxt: { fontSize: 14, opacity: 0.5 },
+  receiptBtnTxtOn: { opacity: 1 },
+  receiptOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.9)', alignItems: 'center', justifyContent: 'center', padding: 16 },
+  receiptImage: { width: '100%', height: '82%' },
+  receiptClose: { color: '#FFFFFF', fontSize: 15, fontWeight: '700', marginTop: 18, padding: 8 },
   catRow: { paddingRight: 8 },
   catChip: { backgroundColor: colors.chipBg, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 8, marginRight: 6, borderWidth: 1, borderColor: colors.cardBorder },
   catChipActive: { backgroundColor: colors.infoBg, borderColor: colors.accent },
