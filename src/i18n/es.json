@@ -57,6 +57,11 @@
   "summary.mileageLine": "{miles} millas × ${rate}/mi = {deduction}",
   "summary.mileageNote": "{count} viajes registrados en {year}. Mantén un registro contemporáneo de cada trayecto (IRS Pub. 463).",
 
+  "counter.headline": "{amount} en deducciones potenciales",
+  "counter.subtitle": "~{amount} menos de impuestos (est.)",
+  "counter.detailTitle": "Tu tajada este año",
+  "counter.disclaimer": "{deductions} en deducciones potenciales.\n~{savings} menos de impuestos (estimado, ≈{rate}%).\n\nEsto es una estimación, no asesoría fiscal. Tu preparador tiene la última palabra.",
+
   "estimate.title": "Aparta para impuestos",
   "estimate.setAside": "Aparta ~{amount}",
   "estimate.pctOfNet": "≈{pct}% de tu ganancia neta",

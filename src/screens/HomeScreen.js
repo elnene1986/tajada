@@ -4,6 +4,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import { getSessions, deleteSession } from '../utils/storage';
 import { readBackupMeta, daysSince } from '../utils/backupMeta';
 import { getMileageState, totalMiles, totalDeduction, entriesForYear } from '../utils/mileage';
+import { deductionTotals, EFFECTIVE_RATE } from '../utils/deductions';
+import { fmtCents } from '../utils/money';
 import { colors } from '../theme';
 import brand from '../brand';
 import BrandLogo from '../components/BrandLogo';
@@ -47,6 +49,24 @@ export default function HomeScreen({ navigation }) {
   }, []));
 
   var freshness = backupFreshness(backupMeta.lastBackupAt);
+
+  // Brief 06 — the "deducciones potenciales" hero number. Derived from
+  // the sessions already loaded; no extra storage read. Hidden entirely
+  // when there's nothing marked negocio yet (a $0 hero reads as broken).
+  var deductions = deductionTotals(sessions);
+  var showCounter = deductions.deductionsCents > 0;
+
+  var showCounterDetail = function() {
+    Alert.alert(
+      t('counter.detailTitle'),
+      t('counter.disclaimer', {
+        deductions: fmtCents(deductions.deductionsCents),
+        savings: fmtCents(deductions.estimatedSavingsCents),
+        rate: Math.round(EFFECTIVE_RATE * 100),
+      }),
+      [{ text: t('common.done') }]
+    );
+  };
 
   // Format a money number consistently with the rest of Home.
   var fmtMoney = function(n) { return '$' + Number(n).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); };
@@ -100,6 +120,20 @@ export default function HomeScreen({ navigation }) {
       <View style={s.privacyBadge}>
         <Text style={s.privacyText}>{t('home.privacy')}</Text>
       </View>
+
+      {/* Brief 06 — deducciones potenciales counter. The hero number:
+          the big total does the emotional work, the subtitle keeps it
+          honest. Tap for the math + the "no es asesoría fiscal" line. */}
+      {showCounter && (
+        <TouchableOpacity style={s.counterCard} onPress={showCounterDetail} activeOpacity={0.85}>
+          <Text style={s.counterHeadline}>
+            {t('counter.headline', { amount: fmtCents(deductions.deductionsCents) })}
+          </Text>
+          <Text style={s.counterSubtitle}>
+            {t('counter.subtitle', { amount: fmtCents(deductions.estimatedSavingsCents) })}
+          </Text>
+        </TouchableOpacity>
+      )}
 
       {/* Secondary affordances — backup + mileage. Both are
           per-creator-tax-prep tools that don't belong inside the
@@ -204,6 +238,15 @@ var s = StyleSheet.create({
   tagline: { fontSize: 11, color: colors.heroTextLabel, marginTop: 8, letterSpacing: 2 },
   privacyBadge: { backgroundColor: colors.heroChip, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 7, marginBottom: 16 },
   privacyText: { fontSize: 11, color: colors.heroTextFaint },
+  // Saffron/gold brand tokens — gold means negocio (the counter is money
+  // the app found by marking things business). Deliberately NOT the
+  // income family; this is a hero, not a ledger row.
+  counterCard: { width: '100%', backgroundColor: colors.card, borderWidth: 1.5, borderColor: colors.accent, borderRadius: 14, paddingVertical: 16, paddingHorizontal: 16, marginBottom: 16, alignItems: 'center' },
+  // Headline is incomeStrong (deep gold-brown) — saffron accent fails
+  // contrast as text on the card (2.33:1). The saffron stays on the
+  // border so the brand accent still reads. Both are gold-family.
+  counterHeadline: { fontSize: 22, fontWeight: '700', color: colors.incomeStrong, textAlign: 'center', letterSpacing: -0.4 },
+  counterSubtitle: { fontSize: 12, color: colors.heroTextMuted, marginTop: 4, textAlign: 'center' },
   secondaryRow: { flexDirection: 'row', marginBottom: 16, width: '100%', paddingHorizontal: 4 },
   secondaryPill: { flex: 1, backgroundColor: colors.heroChip, borderRadius: 10, paddingVertical: 10, paddingHorizontal: 10, marginHorizontal: 4, alignItems: 'center' },
   secondaryPillTitle: { fontSize: 10, color: colors.heroTextLabel, fontWeight: '700', letterSpacing: 0.5, textTransform: 'uppercase' },
