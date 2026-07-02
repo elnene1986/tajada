@@ -8,6 +8,7 @@ import { getRules, applyRules } from '../utils/rules';
 import { suggestForTransactions } from '../utils/categorizer';
 import { classifyImport, dedupedUnion } from '../utils/importGuard';
 import { fmtCents } from '../utils/money';
+import BankGuidePrompt from '../components/BankGuidePrompt';
 import { colors } from '../theme';
 import { t } from '../i18n';
 
@@ -273,14 +274,12 @@ export default function ImportScreen({ navigation, route }) {
           quiet link. Neither competes with the dropzone (the primary
           action) — soft gold, sitting below it. */}
       {files.length === 0 ? (
-        <TouchableOpacity style={s.guideCard} onPress={function() { navigation.navigate('BankGuide'); }} activeOpacity={0.85}>
-          <View style={s.guideCardIcon}><Text style={s.guideCardIconTxt}>?</Text></View>
-          <View style={{ flex: 1 }}>
-            <Text style={s.guideCardTitle}>{t('import.guideCardTitle')}</Text>
-            <Text style={s.guideCardSub}>{t('import.guideCardSub')}</Text>
-          </View>
-          <Text style={s.guideCardChevron}>›</Text>
-        </TouchableOpacity>
+        <BankGuidePrompt
+          title={t('import.guideCardTitle')}
+          subtitle={t('import.guideCardSub')}
+          onPress={function() { navigation.navigate('BankGuide'); }}
+          style={s.guideCardSpacing}
+        />
       ) : (
         <TouchableOpacity style={s.guideLink} onPress={function() { navigation.navigate('BankGuide'); }} activeOpacity={0.7}>
           <Text style={s.guideLinkTxt}>{t('import.guideLink')}</Text>
@@ -420,12 +419,7 @@ var s = StyleSheet.create({
   privacyNote: { fontSize: 11, color: colors.textFaint, textAlign: 'center', lineHeight: 17, paddingHorizontal: 24 },
   guideLink: { alignItems: 'center', paddingVertical: 10, marginTop: -8, marginBottom: 12 },
   guideLinkTxt: { fontSize: 13, color: colors.accent, fontWeight: '600' },
-  guideCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.incomeBg, borderRadius: 14, paddingVertical: 14, paddingHorizontal: 14, marginTop: -8, marginBottom: 16 },
-  guideCardIcon: { width: 34, height: 34, borderRadius: 17, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
-  guideCardIconTxt: { fontSize: 18, fontWeight: '800', color: colors.accentText, marginTop: -1 },
-  guideCardTitle: { fontSize: 15, fontWeight: '700', color: colors.textPrimary },
-  guideCardSub: { fontSize: 12, color: colors.textSecondary, marginTop: 2, lineHeight: 16 },
-  guideCardChevron: { fontSize: 20, color: colors.incomeDeep, marginLeft: 8 },
+  guideCardSpacing: { marginTop: -8, marginBottom: 16 },
   errorBox: { backgroundColor: colors.expenseBg, borderRadius: 8, padding: 12, marginBottom: 16, borderWidth: 1, borderColor: colors.expenseBorder },
   errorText: { fontSize: 12, color: colors.expenseLabel },
   fileList: { marginBottom: 16 },

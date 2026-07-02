@@ -14,6 +14,7 @@ import { colors } from '../theme';
 import brand from '../brand';
 import BrandLogo from '../components/BrandLogo';
 import ShareSummaryCard from '../components/ShareSummaryCard';
+import BankGuidePrompt from '../components/BankGuidePrompt';
 import { t } from '../i18n';
 
 // Pick the freshness phrase. Returns { label, stale } so the link can
@@ -279,17 +280,22 @@ export default function HomeScreen({ navigation }) {
                 <View style={{ flex: 1 }}>
                   <Text style={s.stepTitle}>{t('home.step' + n + 'Title')}</Text>
                   <Text style={s.stepSub}>{t('home.step' + n + 'Sub')}</Text>
+                  {/* Moment of maximum uncertainty (brief 12): step 1 is
+                      "get the file out of your bank" — so the guide prompt
+                      lives right here, inside that card, not as a stray
+                      link at the bottom. Same soft-gold language as Import. */}
+                  {n === 1 && (
+                    <BankGuidePrompt
+                      compact
+                      title={t('home.guideLink')}
+                      onPress={function() { navigation.navigate('BankGuide'); }}
+                    />
+                  )}
                 </View>
               </View>
             );
           })}
           <Text style={s.emptyText}>{t('home.emptyBody')}</Text>
-          {/* Moment of maximum uncertainty (brief 12): a first-timer with
-              no sessions may not know how to get the file out of their
-              bank. Quiet link straight to the per-bank guides. */}
-          <TouchableOpacity onPress={function() { navigation.navigate('BankGuide'); }} activeOpacity={0.7}>
-            <Text style={s.emptyGuideLink}>{t('home.guideLink')}</Text>
-          </TouchableOpacity>
         </View>
       )}
     </View>
@@ -343,5 +349,4 @@ var s = StyleSheet.create({
   stepTitle: { fontSize: 14, fontWeight: '600', color: colors.heroText },
   stepSub: { fontSize: 11, color: colors.heroTextDim, marginTop: 2 },
   emptyText: { fontSize: 12, color: colors.heroTextDim, textAlign: 'center', marginTop: 14, lineHeight: 18, paddingHorizontal: 12 },
-  emptyGuideLink: { fontSize: 13, color: colors.accent, fontWeight: '600', textAlign: 'center', marginTop: 14, textDecorationLine: 'underline' },
 });
