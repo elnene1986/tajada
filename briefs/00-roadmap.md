@@ -10,8 +10,8 @@ Revised 2026-07-01 after the Phase 0 feasibility review. Two corrections drove t
 |---|---|---|---|---|
 | 0 | Feasibility review | Cross-check briefs 06–11 against the actual codebase before writing code | — | ✅ done 2026-07-01 |
 | 1 | 01–05 | Cleanup → smart defaults → voice → PDF → Schedule C. 05 gates most of what follows. (Much shipped in prior sessions; 03 voice + 04 PDF polish still in flight) | — | ◐ in flight |
-| 2 | 06 counter (core) | The sales feature. All prereqs met. Pure derivation, no new storage, no native modules. Ship first for momentum | S | ☐ |
-| 3 | 09 footer + share screen | Distribution. Cheap and compounding; PDF already exists. Footer points at the live GH Pages URL for now | S–M | ☐ |
+| 2 | 06 counter (core) | The sales feature. All prereqs met. Pure derivation, no new storage, no native modules. Ship first for momentum | S | ✅ done 2026-07-01 |
+| 3 | 09 footer + share screen | Distribution. Cheap and compounding; PDF already exists. Footer points at the live GH Pages URL for now | S–M | ✅ done 2026-07-01 |
 | 4 | Settings screen (minimal) | Shared prerequisite — 07/10/11 all want a settings row and none exists. Build once, early, as its own small PR | S | ☐ |
 | 5 | 11 dark-mode plumbing | Theme hook + dark token map + refactor 13 files off module-scope `StyleSheet.create`. Do before 07/08 UI adds more hard-coded hexes | L | ☐ |
 | 6 | 10 i18n reactivity + toggle | Make `t()` reactive + persisted locale + `en.json` (rewrite) + PDF-language setting. Spanish table already exists | M–L | ☐ |

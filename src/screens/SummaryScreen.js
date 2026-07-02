@@ -13,6 +13,8 @@ import { estimateTaxes, fractionToPct, getTaxPrefs, setFedRate, FED_RATE_PRESETS
 import { enableReminders, disableReminders, getReminderPrefs, nextDueDate, formatDueDate } from '../utils/quarterlyReminders';
 import { getHomeOffice, setHomeOfficeSqft, deductionCents as homeOfficeDeduction, MAX_SQFT } from '../utils/homeOffice';
 import Paywall from '../components/Paywall';
+import ShareSheet from '../components/ShareSheet';
+import { PREPARER_URL } from '../config/links';
 import { DEMO_BUILD } from '../config/demo';
 import { colors } from '../theme';
 import brand from '../brand';
@@ -57,6 +59,7 @@ export default function SummaryScreen({ navigation, route }) {
   // initiated so we can re-trigger it after a successful purchase
   // without making them tap the button again.
   var [paywallOpen, setPaywallOpen] = useState(false);
+  var [shareOpen, setShareOpen] = useState(false);
   var pendingExport = useRef(null);
 
   // Mileage deduction — Schedule C Line 9. Loaded once per session
@@ -397,8 +400,12 @@ export default function SummaryScreen({ navigation, route }) {
       + '<td class="sign">' + tr('summary.pdfSignPreparer') + '</td>'
       + '</tr></table>'
 
-      // Footer
+      // Footer — the attribution line (brief 09) is the distribution
+      // strategy: the report lands in the preparer's inbox and quietly
+      // names its tooling. Restrained: one line, small, above the
+      // generation/disclaimer text. URL comes from a single constant.
       + '<div class="foot">'
+      + tr('summary.pdfPreparerAttribution', { brand: brand.displayName, url: PREPARER_URL }) + '<br>'
       + tr('summary.pdfFooter', { brand: brand.displayName, date: dateStr, total: t.length, biz: bInc.length + bExp.length }) + '<br>'
       + tr('summary.pdfDisclaimer')
       + '</div>'
@@ -412,12 +419,15 @@ export default function SummaryScreen({ navigation, route }) {
       var result = await Print.printToFileAsync({ html: html, base64: false });
       await FileSystem.moveAsync({ from: result.uri, to: filePath });
       await Sharing.shareAsync(filePath, { mimeType: 'application/pdf', dialogTitle: brand.displayName + ' ' + taxYear + ' Tax Report' });
+      return true;
     } catch (e) {
       try {
         var fallback = await Print.printToFileAsync({ html: html });
         await Sharing.shareAsync(fallback.uri, { mimeType: 'application/pdf' });
+        return true;
       } catch (e2) {
         Alert.alert(tr('common.error'), tr('summary.pdfError', { msg: e2.message || '' }));
+        return false;
       }
     }
   };
@@ -436,6 +446,22 @@ export default function SummaryScreen({ navigation, route }) {
     } catch (e) {
       Alert.alert(tr('common.error'), tr('summary.csvError', { msg: e.message || '' }));
     }
+  };
+
+  // Brief 09 — "Enviar a tu preparador". The share screen is free to
+  // view; the unlock gate fires on confirm (same paywall as the raw
+  // export). On a successful share, a quiet toast closes the loop.
+  var confirmSend = function() {
+    setShareOpen(false);
+    // Let the modal dismiss before the paywall / share sheet mounts,
+    // mirroring onPaywallUnlocked's defer (iOS drops a sheet that
+    // mounts in the same tick as another modal unmounts).
+    setTimeout(function() { withUnlock(shareToPreparer); }, 250);
+  };
+
+  var shareToPreparer = async function() {
+    var ok = await exportPDF();
+    if (ok) Alert.alert(tr('share.sentTitle'), tr('share.sentBody'));
   };
 
   var markDone = async function() {
@@ -619,6 +645,10 @@ export default function SummaryScreen({ navigation, route }) {
           <Text style={s.reconcileBtnTxt}>{tr('summary.reconcileBtn')}</Text>
         </TouchableOpacity>
 
+        <TouchableOpacity style={s.sendBtn} onPress={function() { setShareOpen(true); }}>
+          <Text style={[s.exportTxt, { color: colors.accentText }]}>{tr('summary.sendToPreparer')}</Text>
+        </TouchableOpacity>
+
         <View style={s.exportRow}>
           <TouchableOpacity style={s.pdfBtn} onPress={function() { withUnlock(exportPDF); }}>
             <Text style={[s.exportTxt, { color: colors.accentText }]}>{tr('summary.exportPdf')}</Text>
@@ -640,6 +670,15 @@ export default function SummaryScreen({ navigation, route }) {
         visible={paywallOpen}
         onUnlocked={onPaywallUnlocked}
         onCancel={onPaywallCancel}
+      />
+
+      {/* Share screen (brief 09) — frames the hand-off to the preparer
+          before the native share sheet fires. */}
+      <ShareSheet
+        visible={shareOpen}
+        year={taxYear}
+        onConfirm={confirmSend}
+        onCancel={function() { setShareOpen(false); }}
       />
     </SafeAreaView>
   );
@@ -706,6 +745,7 @@ var s = StyleSheet.create({
   hoDisclaimer: { fontSize: 10, color: colors.textFaint, marginTop: 12, lineHeight: 14 },
   reconcileBtn: { backgroundColor: colors.card, borderRadius: 8, padding: 13, alignItems: 'center', marginBottom: 10, borderWidth: 1, borderColor: colors.accent },
   reconcileBtnTxt: { fontSize: 13, fontWeight: '700', color: colors.accent },
+  sendBtn: { backgroundColor: colors.accent, borderRadius: 8, padding: 15, alignItems: 'center', marginBottom: 8 },
   exportRow: { flexDirection: 'row', marginBottom: 8 },
   pdfBtn: { flex: 1, backgroundColor: colors.accent, borderRadius: 8, padding: 14, alignItems: 'center', marginRight: 4 },
   csvBtn: { flex: 1, backgroundColor: colors.strongBtn, borderRadius: 8, padding: 14, alignItems: 'center', marginLeft: 4 },
