@@ -250,6 +250,7 @@
   "home.privacy": "🔒  Cada transacción se queda en tu teléfono",
   "home.backupLink": "Respaldo cifrado",
   "home.settingsLink": "Ajustes",
+  "home.guideLink": "¿No sabes sacar el archivo de tu banco?",
   "home.backupNever": "Aún no hay respaldo",
   "home.backupToday": "Respaldo de hoy",
   "home.backupYesterday": "Respaldo de ayer",
@@ -287,6 +288,8 @@
   "review.suggestedHint": "✨ Sugerencia automática — {reason}",
   "import.privacyNote": "🔒 Tus archivos se procesan en tu teléfono.\nNunca se suben a internet.",
   "import.guideLink": "¿Cómo saco el archivo? →",
+  "import.guideCardTitle": "¿No sabes sacar el archivo?",
+  "import.guideCardSub": "Te enseñamos paso a paso, banco por banco.",
 
   "bankGuide.subtitle": "Elige tu banco o app para ver los pasos exactos.",
   "bankGuide.backToList": "‹ Todos los bancos",
