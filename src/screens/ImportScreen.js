@@ -266,6 +266,14 @@ export default function ImportScreen({ navigation, route }) {
         )}
       </TouchableOpacity>
 
+      {/* Brief 12 — "¿Cómo saco el archivo?" The first import is the
+          step users get stuck on; this teaches it per-bank. Quiet link,
+          but it sits right under the dropzone so it's prominent on the
+          empty first-run screen. */}
+      <TouchableOpacity style={s.guideLink} onPress={function() { navigation.navigate('BankGuide'); }} activeOpacity={0.7}>
+        <Text style={s.guideLinkTxt}>{t('import.guideLink')}</Text>
+      </TouchableOpacity>
+
       {errorMsg ? (
         <View style={s.errorBox}><Text style={s.errorText}>{errorMsg}</Text></View>
       ) : null}
@@ -397,6 +405,8 @@ var s = StyleSheet.create({
   sourceChip: { backgroundColor: colors.chipBg, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 6, margin: 4 },
   sourceChipTxt: { fontSize: 11, color: colors.textSecondary, fontWeight: '500' },
   privacyNote: { fontSize: 11, color: colors.textFaint, textAlign: 'center', lineHeight: 17, paddingHorizontal: 24 },
+  guideLink: { alignItems: 'center', paddingVertical: 10, marginTop: -8, marginBottom: 12 },
+  guideLinkTxt: { fontSize: 13, color: colors.accent, fontWeight: '600' },
   errorBox: { backgroundColor: colors.expenseBg, borderRadius: 8, padding: 12, marginBottom: 16, borderWidth: 1, borderColor: colors.expenseBorder },
   errorText: { fontSize: 12, color: colors.expenseLabel },
   fileList: { marginBottom: 16 },
