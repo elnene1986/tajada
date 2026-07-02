@@ -376,6 +376,7 @@
   "summary.incomeRemoved": "Ingresos excluidos",
   "summary.expensesRemoved": "Gastos excluidos",
   "summary.exportPdf": "Exportar PDF",
+  "summary.saveOnlyPdf": "Solo guardar el PDF",
   "summary.exportCsv": "Exportar CSV",
   "summary.sendToPreparer": "Enviar a tu preparador",
   "summary.markDone": "Marcar como listo",

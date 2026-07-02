@@ -14,9 +14,12 @@ import { View, Text, Modal, TouchableOpacity, StyleSheet } from 'react-native';
 import { colors } from '../theme';
 import { t } from '../i18n';
 
-export default function ShareSheet({ visible, year, onConfirm, onCancel }) {
+export default function ShareSheet({ visible, year, onConfirm, onCancel, onDismiss }) {
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onCancel}>
+    // onDismiss (iOS) fires after the Modal has fully left the screen —
+    // the caller uses it to present the native share sheet, which iOS
+    // refuses to do while this Modal is still up.
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onCancel} onDismiss={onDismiss}>
       <View style={s.scrim}>
         <View style={s.sheet}>
           <Text style={s.title}>{t('share.title')}</Text>

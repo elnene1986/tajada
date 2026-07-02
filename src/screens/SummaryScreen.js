@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, Alert, ScrollView, Switch, TextInput } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, Alert, ScrollView, Switch, TextInput, Platform } from 'react-native';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -61,6 +61,11 @@ export default function SummaryScreen({ navigation, route }) {
   var [paywallOpen, setPaywallOpen] = useState(false);
   var [shareOpen, setShareOpen] = useState(false);
   var pendingExport = useRef(null);
+  // Set when the user confirms the share screen. iOS can't present the
+  // native share sheet while our Modal is still on screen, so we defer
+  // the actual export until the Modal has fully dismissed (onDismiss on
+  // iOS; a short delay on Android, which has no onDismiss).
+  var pendingShare = useRef(false);
 
   // Mileage deduction — Schedule C Line 9. Loaded once per session
   // view, scoped to the current tax year. Surfaced both on-screen
@@ -129,13 +134,25 @@ export default function SummaryScreen({ navigation, route }) {
   };
 
   var onPaywallUnlocked = function() {
+    // Defer the pending export until the Paywall Modal is fully gone.
+    // Same iOS constraint as the share screen: a share sheet presented
+    // while a modal is still up silently no-ops. runPendingExport fires
+    // from the Paywall's onDismiss (iOS) or the safety-net timeout below
+    // (Android has no onDismiss; the timeout also covers iOS in the rare
+    // case onDismiss doesn't fire). runPendingExport is idempotent, so
+    // whichever path fires first wins and the other no-ops.
     setPaywallOpen(false);
+    setTimeout(runPendingExport, Platform.OS === 'ios' ? 700 : 300);
+  };
+
+  // Called from the Paywall Modal's onDismiss (iOS) once it's fully gone.
+  var onPaywallDismissed = function() { runPendingExport(); };
+
+  var runPendingExport = function() {
     var fn = pendingExport.current;
+    if (!fn) return; // already ran, or the user cancelled
     pendingExport.current = null;
-    // Brief defer so the modal animation finishes before the share
-    // sheet is presented (otherwise iOS occasionally swallows the
-    // share sheet because two modals try to mount in the same tick).
-    if (fn) setTimeout(fn, 250);
+    fn();
   };
 
   var onPaywallCancel = function() {
@@ -421,11 +438,14 @@ export default function SummaryScreen({ navigation, route }) {
       await Sharing.shareAsync(filePath, { mimeType: 'application/pdf', dialogTitle: brand.displayName + ' ' + taxYear + ' Tax Report' });
       return true;
     } catch (e) {
+      // First attempt failed — log it (don't swallow) before the fallback.
+      console.warn('[export] PDF share failed, retrying:', e);
       try {
         var fallback = await Print.printToFileAsync({ html: html });
         await Sharing.shareAsync(fallback.uri, { mimeType: 'application/pdf' });
         return true;
       } catch (e2) {
+        console.warn('[export] PDF share fallback failed:', e2);
         Alert.alert(tr('common.error'), tr('summary.pdfError', { msg: e2.message || '' }));
         return false;
       }
@@ -452,16 +472,39 @@ export default function SummaryScreen({ navigation, route }) {
   // view; the unlock gate fires on confirm (same paywall as the raw
   // export). On a successful share, a quiet toast closes the loop.
   var confirmSend = function() {
+    // Close the Modal FIRST; run the share only once it's gone. On iOS
+    // the share sheet cannot be presented while the Modal is up — doing
+    // so silently no-ops. onShareDismissed (Modal onDismiss) fires the
+    // deferred action; Android has no onDismiss, so fall back to a delay.
+    pendingShare.current = true;
     setShareOpen(false);
-    // Let the modal dismiss before the paywall / share sheet mounts,
-    // mirroring onPaywallUnlocked's defer (iOS drops a sheet that
-    // mounts in the same tick as another modal unmounts).
-    setTimeout(function() { withUnlock(shareToPreparer); }, 250);
+    // iOS runs this from the Modal's onDismiss; the timeout is a safety
+    // net for the rare case onDismiss doesn't fire (RN has had
+    // intermittent bugs with onDismiss on transparent modals) — without
+    // it, the share would never happen on iOS. runPendingShare is
+    // idempotent, so whichever fires first wins and the other no-ops.
+    setTimeout(runPendingShare, Platform.OS === 'ios' ? 700 : 300);
+  };
+
+  // Called from ShareSheet's Modal onDismiss (iOS) once it's fully gone.
+  var onShareDismissed = function() { runPendingShare(); };
+
+  var runPendingShare = function() {
+    if (!pendingShare.current) return; // e.g. the user cancelled
+    pendingShare.current = false;
+    withUnlock(shareToPreparer);
   };
 
   var shareToPreparer = async function() {
-    var ok = await exportPDF();
-    if (ok) Alert.alert(tr('share.sentTitle'), tr('share.sentBody'));
+    // Surface failures instead of dying silently — the whole point of
+    // this fix. exportPDF also alerts internally, but a throw here (or a
+    // rejected share) must not vanish.
+    try {
+      var ok = await exportPDF();
+      if (ok) Alert.alert(tr('share.sentTitle'), tr('share.sentBody'));
+    } catch (e) {
+      Alert.alert(tr('common.error'), tr('summary.pdfError', { msg: (e && e.message) || '' }));
+    }
   };
 
   var markDone = async function() {
@@ -645,16 +688,21 @@ export default function SummaryScreen({ navigation, route }) {
           <Text style={s.reconcileBtnTxt}>{tr('summary.reconcileBtn')}</Text>
         </TouchableOpacity>
 
+        {/* Primary action — the framed hand-off to the preparer. The
+            raw-file exports below are demoted to secondary text links so
+            the recommended path reads first. Both still run through the
+            same withUnlock gate as before. */}
         <TouchableOpacity style={s.sendBtn} onPress={function() { setShareOpen(true); }}>
-          <Text style={[s.exportTxt, { color: colors.accentText }]}>{tr('summary.sendToPreparer')}</Text>
+          <Text style={[s.exportTxt, s.sendBtnTxt, { color: colors.accentText }]}>{tr('summary.sendToPreparer')}</Text>
         </TouchableOpacity>
 
-        <View style={s.exportRow}>
-          <TouchableOpacity style={s.pdfBtn} onPress={function() { withUnlock(exportPDF); }}>
-            <Text style={[s.exportTxt, { color: colors.accentText }]}>{tr('summary.exportPdf')}</Text>
+        <View style={s.secondaryExportRow}>
+          <TouchableOpacity onPress={function() { withUnlock(exportPDF); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Text style={s.secondaryExportLink}>{tr('summary.saveOnlyPdf')}</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={s.csvBtn} onPress={function() { withUnlock(exportCSV); }}>
-            <Text style={[s.exportTxt, { color: colors.strongBtnText }]}>{tr('summary.exportCsv')}</Text>
+          <Text style={s.secondaryExportSep}>·</Text>
+          <TouchableOpacity onPress={function() { withUnlock(exportCSV); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Text style={s.secondaryExportLink}>{tr('summary.exportCsv')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -670,6 +718,7 @@ export default function SummaryScreen({ navigation, route }) {
         visible={paywallOpen}
         onUnlocked={onPaywallUnlocked}
         onCancel={onPaywallCancel}
+        onDismiss={onPaywallDismissed}
       />
 
       {/* Share screen (brief 09) — frames the hand-off to the preparer
@@ -679,6 +728,7 @@ export default function SummaryScreen({ navigation, route }) {
         year={taxYear}
         onConfirm={confirmSend}
         onCancel={function() { setShareOpen(false); }}
+        onDismiss={onShareDismissed}
       />
     </SafeAreaView>
   );
@@ -745,10 +795,11 @@ var s = StyleSheet.create({
   hoDisclaimer: { fontSize: 10, color: colors.textFaint, marginTop: 12, lineHeight: 14 },
   reconcileBtn: { backgroundColor: colors.card, borderRadius: 8, padding: 13, alignItems: 'center', marginBottom: 10, borderWidth: 1, borderColor: colors.accent },
   reconcileBtnTxt: { fontSize: 13, fontWeight: '700', color: colors.accent },
-  sendBtn: { backgroundColor: colors.accent, borderRadius: 8, padding: 15, alignItems: 'center', marginBottom: 8 },
-  exportRow: { flexDirection: 'row', marginBottom: 8 },
-  pdfBtn: { flex: 1, backgroundColor: colors.accent, borderRadius: 8, padding: 14, alignItems: 'center', marginRight: 4 },
-  csvBtn: { flex: 1, backgroundColor: colors.strongBtn, borderRadius: 8, padding: 14, alignItems: 'center', marginLeft: 4 },
+  sendBtn: { backgroundColor: colors.accent, borderRadius: 8, padding: 16, alignItems: 'center', marginBottom: 6 },
+  sendBtnTxt: { fontSize: 15, fontWeight: '700' },
+  secondaryExportRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginBottom: 8, marginTop: 2 },
+  secondaryExportLink: { fontSize: 13, color: colors.textFaint, fontWeight: '500', textDecorationLine: 'underline', paddingHorizontal: 8, paddingVertical: 2 },
+  secondaryExportSep: { fontSize: 13, color: colors.textFaint },
   exportTxt: { fontSize: 13, fontWeight: '600' },
   doneBtn: { backgroundColor: colors.income, borderRadius: 8, padding: 14, alignItems: 'center' },
 });

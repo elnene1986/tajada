@@ -27,7 +27,7 @@ import { t } from '../i18n';
 
 var SAMPLE_EXPORT_URL = 'https://elnene1986.github.io/tajada/sample-export.html';
 
-export default function Paywall({ visible, onUnlocked, onCancel }) {
+export default function Paywall({ visible, onUnlocked, onCancel, onDismiss }) {
   var [loading, setLoading] = useState(true);
   var [busy, setBusy] = useState(false);
   var [error, setError] = useState('');
@@ -142,7 +142,10 @@ export default function Paywall({ visible, onUnlocked, onCancel }) {
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onCancel}>
+    // onDismiss (iOS) fires after the Modal has fully left the screen —
+    // the caller uses it to run any deferred export (e.g. presenting the
+    // native share sheet), which iOS refuses to do while this Modal is up.
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onCancel} onDismiss={onDismiss}>
       <View style={s.overlay}>
         <View style={s.sheet}>
           <ScrollView contentContainerStyle={{ paddingBottom: 20 }} showsVerticalScrollIndicator={false}>
