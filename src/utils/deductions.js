@@ -25,12 +25,27 @@
 // math here — that's taxEstimate.js / brief 07's territory.
 export var EFFECTIVE_RATE = 0.25;
 
+// Dedup key mirrors ImportScreen / ReviewScreen exactly:
+// date | amountCents | lowercased description. This is what those screens
+// use to merge re-imports, so the counter's notion of "the same
+// transaction" matches the app's everywhere else.
+function dedupKey(tx) {
+  return (tx.date || '') + '|' + tx.amountCents + '|' + String(tx.description || '').toLowerCase();
+}
+
 // Sum business expenses across all sessions and derive estimated savings.
 // A "business expense" is a debit the user marked negocio — the exact
-// predicate SummaryScreen uses (type === 'debit' && isBusiness). Returns
-// integer cents; tolerant of malformed/empty input (returns zeros).
+// predicate SummaryScreen uses (type === 'debit' && isBusiness).
+//
+// Deduplicated across sessions: importing the same CSV twice creates two
+// sessions with identical rows, and the counter must not count each
+// expense twice. The first occurrence of a (date, amount, description)
+// key counts; later duplicates in any other session are skipped.
+//
+// Returns integer cents; tolerant of malformed/empty input (returns zeros).
 export function deductionTotals(sessions) {
   var deductionsCents = 0;
+  var seen = new Set();
   if (Array.isArray(sessions)) {
     for (var i = 0; i < sessions.length; i++) {
       var s = sessions[i];
@@ -39,6 +54,9 @@ export function deductionTotals(sessions) {
         var tx = s.transactions[j];
         if (tx && tx.type === 'debit' && tx.isBusiness &&
             Number.isFinite(tx.amountCents)) {
+          var key = dedupKey(tx);
+          if (seen.has(key)) continue;
+          seen.add(key);
           deductionsCents += tx.amountCents;
         }
       }

@@ -39,6 +39,36 @@ describe('deductionTotals', () => {
     expect(r.estimatedSavingsCents).toBe(Math.round(35000 * EFFECTIVE_RATE));
   });
 
+  it('dedups identical rows across sessions (same CSV imported twice)', () => {
+    // A realistic row carries date + description; the dedup key is
+    // date | amountCents | description.toLowerCase().
+    function row(date, desc, cents) {
+      return { type: 'debit', isBusiness: true, date: date, description: desc, amountCents: cents };
+    }
+    const rows = [
+      row('2026-01-05', 'ADOBE INC', 5299),
+      row('2026-01-12', 'B&H PHOTO', 120000),
+    ];
+    const single = deductionTotals([session(rows)]);
+    // Same CSV imported as a second session — every row duplicated.
+    const doubled = deductionTotals([session(rows.slice()), session(rows.slice())]);
+    expect(single.deductionsCents).toBe(125299);
+    expect(doubled.deductionsCents).toBe(125299); // not 250598
+    expect(doubled.estimatedSavingsCents).toBe(single.estimatedSavingsCents);
+  });
+
+  it('keeps genuinely distinct rows that share an amount', () => {
+    function row(date, desc, cents) {
+      return { type: 'debit', isBusiness: true, date: date, description: desc, amountCents: cents };
+    }
+    // Same amount, different date/description → two real expenses, not dups.
+    const r = deductionTotals([session([
+      row('2026-01-05', 'ADOBE INC', 5299),
+      row('2026-02-05', 'FIGMA', 5299),
+    ])]);
+    expect(r.deductionsCents).toBe(10598);
+  });
+
   it('returns zeros for empty / malformed input', () => {
     expect(deductionTotals([])).toEqual({ deductionsCents: 0, estimatedSavingsCents: 0 });
     expect(deductionTotals(null)).toEqual({ deductionsCents: 0, estimatedSavingsCents: 0 });
