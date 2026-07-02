@@ -65,3 +65,10 @@ Gated on 05 (needs categorized business expenses to be meaningful — an uncateg
 ## What to measure
 
 Sessions that end with the counter visibly incrementing vs. not; share-card generations; whether users who see the counter in week one retain into month two. If the counter doesn't move retention, the number isn't prominent enough — the failure mode is burying it, not overexposing it.
+
+## Backlog — share-card polish (not yet built; noted 2026-07-02 after device test)
+
+Two nits found while device-testing the share card (`src/components/ShareSummaryCard.js`, captured in `HomeScreen.shareSummary`):
+
+1. **Omit the "top categorías" section when every row is Sin categoría.** Today the card always renders the top-3 block; if all business expenses are uncategorized it shows a single "Sin categoría" row, which is noise. When `topDeductionCategories` returns only the `uncategorized` bucket, drop the section entirely.
+2. **Name the shared PNG `Tajada-<year>.png`, not a UUID.** `captureRef` yields a temp file with a random name; copy/rename it to `Tajada-<year>.png` before handing it to `expo-sharing` so the artifact reads as branded when saved/forwarded.
