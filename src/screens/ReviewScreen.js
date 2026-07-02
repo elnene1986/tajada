@@ -6,6 +6,7 @@ import { getSessions, saveSession } from '../utils/storage';
 import { parseFile, sourceLabel } from '../parsers';
 import { merchantKey, saveRule, getRules, applyRules } from '../utils/rules';
 import { suggestForTransactions } from '../utils/categorizer';
+import { classifyImport } from '../utils/importGuard';
 import { categoriesForType, defaultCategoryKey, categoryLabel, categoryTip } from '../utils/categories';
 import { captureReceipt, pickReceipt, deleteReceiptFile } from '../utils/receipts';
 import { fmtCents, fmtCentsK } from '../utils/money';
@@ -106,38 +107,66 @@ export default function ReviewScreen({ navigation, route }) {
       // ImportScreen runs, so merged files behave identically.
       applied = { transactions: suggestForTransactions(applied.transactions).transactions };
 
-      // Check for duplicates by matching date + amount + description
-      var existingKeys = new Set(txns.map(function(t) { return t.date + '|' + t.amountCents + '|' + t.description.toLowerCase(); }));
-      var newTxns = applied.transactions.filter(function(t) {
-        var key = t.date + '|' + t.amountCents + '|' + t.description.toLowerCase();
-        return !existingKeys.has(key);
-      });
-      // Count post-dedupe auto-classified rows for the toast message.
-      var autoCount = newTxns.filter(function(t) { return t.ruleApplied; }).length;
+      // Duplicate-import guard — compare against every existing session
+      // (same date|amount|description key used everywhere), then merge
+      // only genuinely new rows.
+      var sessions = await getSessions();
+      var guard = classifyImport(applied.transactions, sessions);
 
-      var dupeCount = parseResult.transactions.length - newTxns.length;
-      var snap = txns.slice();
-      var merged = txns.concat(newTxns);
-      setTxns(merged);
+      if (guard.status === 'all_duplicate') {
+        setAdding(false);
+        Alert.alert(
+          t('import.dupAllTitle'),
+          guard.matchSessionName
+            ? t('import.dupAllBody', { name: guard.matchSessionName })
+            : t('import.dupAllBodyNoName'),
+          [{ text: t('common.ok') }]
+        );
+        return;
+      }
 
-      // Update session name to show multiple sources.
-      // sourceLabel() translates the stable English source keys
-      // (e.g. 'Venmo', 'Credit Card') into Spanish for display.
-      var sources = [];
-      var seen = {};
-      merged.forEach(function(t) { if (!seen[t.source]) { seen[t.source] = true; sources.push(t.source); } });
-      var newSession = Object.assign({}, session, {
-        name: sources.map(sourceLabel).join(' + ') + t('review.combinedSuffix'),
-        transactions: merged,
-        totalCount: merged.length,
-        excludedCount: merged.filter(function(t) { return !t.isBusiness; }).length,
-        updatedAt: new Date().toISOString(),
-      });
-      setSession(newSession);
-      await saveSession(newSession);
+      var proceed = async function() {
+        var newTxns = guard.newTxns;
+        // Count auto-classified rows for the undo toast message.
+        var autoCount = newTxns.filter(function(t) { return t.ruleApplied; }).length;
+        var snap = txns.slice();
+        var merged = txns.concat(newTxns);
+        setTxns(merged);
+
+        // Update session name to show multiple sources. sourceLabel()
+        // translates the stable English source keys into Spanish.
+        var sources = [];
+        var seen = {};
+        merged.forEach(function(t) { if (!seen[t.source]) { seen[t.source] = true; sources.push(t.source); } });
+        var newSession = Object.assign({}, session, {
+          name: sources.map(sourceLabel).join(' + ') + t('review.combinedSuffix'),
+          transactions: merged,
+          totalCount: merged.length,
+          excludedCount: merged.filter(function(t) { return !t.isBusiness; }).length,
+          updatedAt: new Date().toISOString(),
+        });
+        setSession(newSession);
+        try {
+          await saveSession(newSession);
+        } catch (e) {
+          Alert.alert(t('common.error'), t('review.addFileError', { msg: e.message || t('common.unknown') }));
+        }
+        setUndo({ prev: snap, label: file.name, count: newTxns.length, autoCount: autoCount, isMerge: true });
+      };
 
       setAdding(false);
-      setUndo({ prev: snap, label: file.name, count: newTxns.length, autoCount: autoCount, isMerge: true });
+
+      if (guard.status === 'partial') {
+        Alert.alert(
+          t('import.dupPartialTitle'),
+          t('import.dupPartialBody', { newCount: guard.newCount, dupCount: guard.duplicateCount }),
+          [{ text: t('common.ok'), onPress: proceed }]
+        );
+        return;
+      }
+
+      // No overlap — merge normally.
+      proceed();
     } catch (err) {
       setAdding(false);
       Alert.alert(t('common.error'), t('review.addFileError', { msg: err.message || t('common.unknown') }));

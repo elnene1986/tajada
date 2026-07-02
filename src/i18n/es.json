@@ -6,6 +6,7 @@
   "common.income": "Ingresos",
   "common.expenses": "Gastos",
   "common.noTransactions": "No hay transacciones",
+  "common.ok": "OK",
   "common.unknown": "Desconocido",
   "common.unknownError": "Error desconocido",
 
@@ -278,6 +279,14 @@
   "import.errorPrefix": "Error: {msg}",
   "import.noTxnBody": "Ninguno de los archivos subidos contenía transacciones.",
   "import.saveError": "No se pudo guardar: {msg}",
+  "import.dupAllTitle": "Ya importaste este archivo",
+  "import.dupAllBody": "Estas transacciones ya están en «{name}». No se importó nada nuevo.",
+  "import.dupAllBodyNoName": "Estas transacciones ya están en una sesión anterior. No se importó nada nuevo.",
+  "import.dupPartialTitle": "Duplicadas omitidas",
+  "import.dupPartialBody": "{newCount} transacciones nuevas · {dupCount} duplicadas omitidas",
+  "import.dupInBatchTitle": "Ya está en la lista",
+  "import.dupInBatchBody": "«{name}» ya está en la lista. No se agregó de nuevo.",
+  "import.dupInBatchBodyMany": "{count} archivos ya estaban en la lista y no se agregaron: {preview}",
 
   "review.noTxnBody": "No se encontraron transacciones en {name}",
   "review.combinedSuffix": " — Combinado",

@@ -3,9 +3,10 @@ import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, Alert, Activity
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { parseFile, formatLabel, sourceLabel } from '../parsers';
-import { saveSession } from '../utils/storage';
+import { saveSession, getSessions } from '../utils/storage';
 import { getRules, applyRules } from '../utils/rules';
 import { suggestForTransactions } from '../utils/categorizer';
+import { classifyImport, dedupedUnion } from '../utils/importGuard';
 import { fmtCents } from '../utils/money';
 import { colors } from '../theme';
 import { t } from '../i18n';
@@ -44,11 +45,12 @@ export default function ImportScreen({ navigation, route }) {
   // user sanity-check parsed totals before proceeding — this is the
   // "parse reconciliation" step. Users tap Start sorting explicitly.
 
-  var totalTxns = files.reduce(function(sum, f) { return sum + f.transactions.length; }, 0);
-  var overall = files.reduce(function(acc, f) {
-    var tot = totalsFor(f.transactions);
-    return { income: acc.income + tot.income, expenses: acc.expenses + tot.expenses };
-  }, { income: 0, expenses: 0 });
+  // Totals card computes from the DEDUPED UNION across files so that
+  // partial in-batch overlap doesn't inflate the numbers (fully-duplicate
+  // files are rejected at add time, below).
+  var unionTxns = dedupedUnion(files);
+  var totalTxns = unionTxns.length;
+  var overall = totalsFor(unionTxns);
   var totalAuto = files.reduce(function(n, f) { return n + (f.autoCount || 0); }, 0);
 
   var pickFiles = async function() {
@@ -76,6 +78,10 @@ export default function ImportScreen({ navigation, route }) {
       setLoading(true);
       var newFiles = [];
       var skipped = [];
+      var dupNames = [];
+      // Running view of the batch (already-listed files + ones accepted
+      // in this pick) so we can reject a file that adds nothing new.
+      var batchSoFar = files.slice();
 
       // Load rules once per batch. Applied to every parsed file so the
       // user lands in Review with known merchants already classified.
@@ -98,8 +104,18 @@ export default function ImportScreen({ navigation, route }) {
           // covered — pre-fills the Review modal's category picker.
           var suggested = suggestForTransactions(ruleResult.transactions);
           ruleResult = { transactions: suggested.transactions, appliedCount: ruleResult.appliedCount };
+
+          // In-batch duplicate guard: if this file adds no new rows vs
+          // what's already listed, don't add it again. (Only meaningful
+          // for files that actually parsed rows.)
+          if (ruleResult.transactions.length > 0 &&
+              classifyImport(ruleResult.transactions, batchSoFar).newCount === 0) {
+            dupNames.push(file.name);
+            continue;
+          }
+
           var tot = totalsFor(ruleResult.transactions);
-          newFiles.push({
+          var fileObj = {
             id: uid(),
             name: file.name,
             format: parseResult.format,
@@ -109,7 +125,9 @@ export default function ImportScreen({ navigation, route }) {
             income: tot.income,
             expenses: tot.expenses,
             autoCount: ruleResult.appliedCount,
-          });
+          };
+          newFiles.push(fileObj);
+          batchSoFar.push(fileObj);
         } catch (err) {
           newFiles.push({
             id: uid(),
@@ -132,6 +150,15 @@ export default function ImportScreen({ navigation, route }) {
       if (skipped.length > 0) {
         var preview = skipped.slice(0, 3).join(', ') + (skipped.length > 3 ? t('import.andMore', { count: skipped.length - 3 }) : '');
         setErrorMsg(t(skipped.length === 1 ? 'import.skippedOne' : 'import.skippedMany', { count: skipped.length, preview: preview }));
+      }
+
+      if (dupNames.length > 0) {
+        if (dupNames.length === 1) {
+          Alert.alert(t('import.dupInBatchTitle'), t('import.dupInBatchBody', { name: dupNames[0] }));
+        } else {
+          var dupPreview = dupNames.slice(0, 3).join(', ') + (dupNames.length > 3 ? t('import.andMore', { count: dupNames.length - 3 }) : '');
+          Alert.alert(t('import.dupInBatchTitle'), t('import.dupInBatchBodyMany', { count: dupNames.length, preview: dupPreview }));
+        }
       }
     } catch (err) {
       setLoading(false);
@@ -165,6 +192,36 @@ export default function ImportScreen({ navigation, route }) {
       return;
     }
 
+    // Duplicate-import guard — compare the parsed rows against every
+    // existing session before creating a new one.
+    var sessions = await getSessions();
+    var guard = classifyImport(allTxns, sessions);
+
+    if (guard.status === 'all_duplicate') {
+      Alert.alert(
+        t('import.dupAllTitle'),
+        guard.matchSessionName
+          ? t('import.dupAllBody', { name: guard.matchSessionName })
+          : t('import.dupAllBodyNoName'),
+        [{ text: t('common.ok') }]
+      );
+      return;
+    }
+
+    if (guard.status === 'partial') {
+      Alert.alert(
+        t('import.dupPartialTitle'),
+        t('import.dupPartialBody', { newCount: guard.newCount, dupCount: guard.duplicateCount }),
+        [{ text: t('common.ok'), onPress: function() { createSession(guard.newTxns, sources); } }]
+      );
+      return;
+    }
+
+    // No overlap — import normally.
+    createSession(guard.newTxns, sources);
+  };
+
+  var createSession = async function(txnsToSave, sources) {
     try {
       // Build session display name. Translate the source keys via
       // sourceLabel() so the session title reads in Spanish even though
@@ -177,8 +234,8 @@ export default function ImportScreen({ navigation, route }) {
           : sourceNames[0] + ' — ' + files[0].name,
         source: sources.join(', '),
         format: 'multiple',
-        transactions: allTxns,
-        totalCount: allTxns.length,
+        transactions: txnsToSave,
+        totalCount: txnsToSave.length,
         excludedCount: 0,
         status: 'in_progress',
         createdAt: new Date().toISOString(),
