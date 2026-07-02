@@ -5,6 +5,7 @@ import { getSessions, deleteSession } from '../utils/storage';
 import { readBackupMeta, daysSince } from '../utils/backupMeta';
 import { getMileageState, totalMiles, totalDeduction, entriesForYear } from '../utils/mileage';
 import { deductionTotals, EFFECTIVE_RATE } from '../utils/deductions';
+import { getSettings } from '../utils/settings';
 import { fmtCents } from '../utils/money';
 import { colors } from '../theme';
 import brand from '../brand';
@@ -27,10 +28,14 @@ export default function HomeScreen({ navigation }) {
   var [editing, setEditing] = useState(false);
   var [backupMeta, setBackupMeta] = useState({ lastBackupAt: null });
   var [mileageSummary, setMileageSummary] = useState({ miles: 0, deduction: 0, count: 0 });
+  // Effective rate for the counter's savings estimate — user-adjustable
+  // in Settings (brief B3). Defaults to EFFECTIVE_RATE until loaded.
+  var [effectiveRate, setEffectiveRate] = useState(EFFECTIVE_RATE);
 
   useFocusEffect(useCallback(function() {
     getSessions().then(setSessions);
     readBackupMeta().then(setBackupMeta);
+    getSettings().then(function(cfg) { setEffectiveRate(cfg.effectiveRate); });
     // Load the current year's mileage summary so the Home pill can
     // show a live "120 mi · $84.00" hint instead of just a label.
     (async function() {
@@ -53,7 +58,7 @@ export default function HomeScreen({ navigation }) {
   // Brief 06 — the "deducciones potenciales" hero number. Derived from
   // the sessions already loaded; no extra storage read. Hidden entirely
   // when there's nothing marked negocio yet (a $0 hero reads as broken).
-  var deductions = deductionTotals(sessions);
+  var deductions = deductionTotals(sessions, effectiveRate);
   var showCounter = deductions.deductionsCents > 0;
 
   var showCounterDetail = function() {
@@ -62,7 +67,7 @@ export default function HomeScreen({ navigation }) {
       t('counter.disclaimer', {
         deductions: fmtCents(deductions.deductionsCents),
         savings: fmtCents(deductions.estimatedSavingsCents),
-        rate: Math.round(EFFECTIVE_RATE * 100),
+        rate: Math.round(effectiveRate * 100),
       }),
       [{ text: t('common.done') }]
     );
@@ -107,6 +112,13 @@ export default function HomeScreen({ navigation }) {
   return (
     <View style={s.container}>
       <StatusBar barStyle="light-content" />
+
+      {/* Settings — the home for adjustable rate + info/links (brief B3).
+          Kept as a quiet top-right affordance so it doesn't compete with
+          the hero. */}
+      <TouchableOpacity style={s.settingsBtn} onPress={function() { navigation.navigate('Settings'); }} activeOpacity={0.7}>
+        <Text style={s.settingsBtnTxt}>{t('home.settingsLink')}</Text>
+      </TouchableOpacity>
 
       {/* Logo */}
       <View style={s.header}>
@@ -231,6 +243,8 @@ export default function HomeScreen({ navigation }) {
 
 var s = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.heroBg, paddingHorizontal: 20, paddingTop: 64, alignItems: 'center' },
+  settingsBtn: { position: 'absolute', top: 52, right: 18, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 16, backgroundColor: colors.heroChip, zIndex: 10 },
+  settingsBtnTxt: { fontSize: 11, color: colors.heroTextMuted, fontWeight: '600', letterSpacing: 0.3 },
   header: { alignItems: 'center', marginBottom: 18 },
   logoRow: { marginBottom: 14 },
   brand: { fontSize: 34, color: colors.heroText, letterSpacing: -0.8 },

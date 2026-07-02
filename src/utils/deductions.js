@@ -19,11 +19,18 @@
 // (see src/utils/money.js). No storage, no LLM, no native modules.
 
 // Blended federal + SE-tax proxy for a solo creator. A $500 deduction is
-// not $500 back — at ~25% effective it's ~$125. A future settings row
-// ("¿Tu tasa? La mayoría de creadores: 22–30%") can make this adjustable;
-// for now it's one constant so the counter can ship. Do NOT grow real tax
+// not $500 back — at ~25% effective it's ~$125. This is the DEFAULT rate;
+// the Settings screen (brief B3) lets the user pick one of RATE_PRESETS
+// and persists it via src/utils/settings.js. Callers load the persisted
+// rate and pass it to deductionTotals(); with no argument this default
+// stands (which is what the unit tests exercise). Do NOT grow real tax
 // math here — that's taxEstimate.js / brief 07's territory.
 export var EFFECTIVE_RATE = 0.25;
+
+// The choices offered in Settings ("¿Tu tasa? La mayoría de creadores:
+// 22–30%"). Kept here next to the default so the counter's math and the
+// settings UI never drift apart.
+export var RATE_PRESETS = [0.22, 0.25, 0.30];
 
 // Dedup key mirrors ImportScreen / ReviewScreen exactly:
 // date | amountCents | lowercased description. This is what those screens
@@ -42,8 +49,14 @@ function dedupKey(tx) {
 // expense twice. The first occurrence of a (date, amount, description)
 // key counts; later duplicates in any other session are skipped.
 //
+// `rate` is the effective-rate multiplier for the savings estimate; when
+// omitted (or invalid) it falls back to EFFECTIVE_RATE, so existing
+// callers and tests keep the 0.25 default. The Home screen loads the
+// user's persisted choice (src/utils/settings.js) and passes it in.
+//
 // Returns integer cents; tolerant of malformed/empty input (returns zeros).
-export function deductionTotals(sessions) {
+export function deductionTotals(sessions, rate) {
+  var effRate = (typeof rate === 'number' && rate > 0 && rate < 1) ? rate : EFFECTIVE_RATE;
   var deductionsCents = 0;
   var seen = new Set();
   if (Array.isArray(sessions)) {
@@ -62,7 +75,7 @@ export function deductionTotals(sessions) {
       }
     }
   }
-  var estimatedSavingsCents = Math.round(deductionsCents * EFFECTIVE_RATE);
+  var estimatedSavingsCents = Math.round(deductionsCents * effRate);
   return {
     deductionsCents: deductionsCents,
     estimatedSavingsCents: estimatedSavingsCents,

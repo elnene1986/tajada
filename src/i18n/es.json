@@ -16,6 +16,7 @@
   "nav.backup": "Respaldo",
   "nav.mileage": "Millas",
   "nav.reconcile": "1099-K",
+  "nav.settings": "Ajustes",
 
   "mileage.title": "Millas de negocio",
   "mileage.subtitle": "Registra los viajes que haces para tu trabajo de creador. Tajada calcula tu deducción al ritmo del IRS — Schedule C Línea 9.",
@@ -62,6 +63,15 @@
   "counter.subtitle": "~{amount} menos de impuestos (est.)",
   "counter.detailTitle": "Tu tajada este año",
   "counter.disclaimer": "{deductions} en deducciones potenciales.\n~{savings} menos de impuestos (estimado, ≈{rate}%).\n\nEsto es una estimación, no asesoría fiscal. Tu preparador tiene la última palabra.",
+
+  "settings.rateTitle": "Tu tasa efectiva",
+  "settings.rateSub": "La usamos para estimar tu ahorro. La mayoría de creadores está entre 22 % y 30 %.",
+  "settings.rateDisclaimer": "Es una estimación, no asesoría fiscal. Tu preparador tiene la última palabra.",
+  "settings.infoTitle": "Información",
+  "settings.backupLink": "Respaldo cifrado",
+  "settings.privacyLink": "Política de privacidad",
+  "settings.supportLink": "Soporte",
+  "settings.version": "Versión {version}",
 
   "estimate.title": "Aparta para impuestos",
   "estimate.setAside": "Aparta ~{amount}",
@@ -229,6 +239,7 @@
 
   "home.privacy": "🔒  Cada transacción se queda en tu teléfono",
   "home.backupLink": "Respaldo cifrado",
+  "home.settingsLink": "Ajustes",
   "home.backupNever": "Aún no hay respaldo",
   "home.backupToday": "Respaldo de hoy",
   "home.backupYesterday": "Respaldo de ayer",

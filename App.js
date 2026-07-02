@@ -10,6 +10,7 @@ import SummaryScreen from './src/screens/SummaryScreen';
 import BackupScreen from './src/screens/BackupScreen';
 import MileageScreen from './src/screens/MileageScreen';
 import Reconcile1099Screen from './src/screens/Reconcile1099Screen';
+import SettingsScreen from './src/screens/SettingsScreen';
 import OnboardingScreen, { hasSeenOnboarding } from './src/screens/OnboardingScreen';
 import DisclaimerModal from './src/components/DisclaimerModal';
 import ErrorBoundary from './src/components/ErrorBoundary';
@@ -60,6 +61,7 @@ function MainApp() {
         <Stack.Screen name="Backup" component={BackupScreen} options={{ title: t('nav.backup') }} />
         <Stack.Screen name="Mileage" component={MileageScreen} options={{ title: t('nav.mileage') }} />
         <Stack.Screen name="Reconcile1099" component={Reconcile1099Screen} options={{ title: t('nav.reconcile') }} />
+        <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: t('nav.settings') }} />
       </Stack.Navigator>
     </NavigationContainer>
   );

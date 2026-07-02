@@ -6,3 +6,8 @@
 // this ONE constant to https://tajada.app/preparadores and both the
 // footer and any future in-app link follow. (Decision log B4, 2026-07-01.)
 export var PREPARER_URL = 'https://elnene1986.github.io/tajada/';
+
+// Public info pages, served from GitHub Pages today (see B4). Surfaced
+// from the Settings screen; swap the host here if the domain moves.
+export var PRIVACY_URL = 'https://elnene1986.github.io/tajada/privacy';
+export var SUPPORT_URL = 'https://elnene1986.github.io/tajada/support';
