@@ -1,15 +1,19 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, StatusBar, ScrollView, Alert } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { captureRef } from 'react-native-view-shot';
+import * as Sharing from 'expo-sharing';
 import { getSessions, deleteSession } from '../utils/storage';
 import { readBackupMeta, daysSince } from '../utils/backupMeta';
 import { getMileageState, totalMiles, totalDeduction, entriesForYear } from '../utils/mileage';
-import { deductionTotals, EFFECTIVE_RATE } from '../utils/deductions';
+import { deductionTotals, topDeductionCategories, EFFECTIVE_RATE } from '../utils/deductions';
 import { getSettings } from '../utils/settings';
+import { categoryLabel } from '../utils/categories';
 import { fmtCents } from '../utils/money';
 import { colors } from '../theme';
 import brand from '../brand';
 import BrandLogo from '../components/BrandLogo';
+import ShareSummaryCard from '../components/ShareSummaryCard';
 import { t } from '../i18n';
 
 // Pick the freshness phrase. Returns { label, stale } so the link can
@@ -61,6 +65,30 @@ export default function HomeScreen({ navigation }) {
   var deductions = deductionTotals(sessions, effectiveRate);
   var showCounter = deductions.deductionsCents > 0;
 
+  // Top 3 Schedule C categories for the shareable summary card. Labels
+  // resolved here so the card component stays presentational.
+  var topCategories = topDeductionCategories(sessions, 3).map(function(c) {
+    return { label: categoryLabel(c.category), deductionsCents: c.deductionsCents };
+  });
+
+  // Off-screen ref to the ShareSummaryCard, captured on "Compartir".
+  var shareCardRef = useRef(null);
+  var thisYear = new Date().getFullYear();
+
+  // Render the off-screen card to a PNG and hand it to the OS share
+  // sheet. Guards: expo-sharing may be unavailable (e.g. simulator);
+  // any capture/share failure surfaces a quiet alert instead of throwing.
+  var shareSummary = async function() {
+    try {
+      var uri = await captureRef(shareCardRef, { format: 'png', quality: 1 });
+      var canShare = await Sharing.isAvailableAsync();
+      if (!canShare) { Alert.alert(t('common.error'), t('counter.shareError')); return; }
+      await Sharing.shareAsync(uri, { mimeType: 'image/png', dialogTitle: t('counter.shareTitle') });
+    } catch (e) {
+      Alert.alert(t('common.error'), t('counter.shareError'));
+    }
+  };
+
   var showCounterDetail = function() {
     Alert.alert(
       t('counter.detailTitle'),
@@ -69,7 +97,10 @@ export default function HomeScreen({ navigation }) {
         savings: fmtCents(deductions.estimatedSavingsCents),
         rate: Math.round(effectiveRate * 100),
       }),
-      [{ text: t('common.done') }]
+      [
+        { text: t('counter.shareCta'), onPress: shareSummary },
+        { text: t('common.done') },
+      ]
     );
   };
 
@@ -119,6 +150,24 @@ export default function HomeScreen({ navigation }) {
       <TouchableOpacity style={s.settingsBtn} onPress={function() { navigation.navigate('Settings'); }} activeOpacity={0.7}>
         <Text style={s.settingsBtnTxt}>{t('home.settingsLink')}</Text>
       </TouchableOpacity>
+
+      {/* Off-screen shareable summary card (brief 06). Mounted whenever
+          there's a counter to share so the ref exists when the detail
+          alert fires; captured to PNG by shareSummary(). Positioned far
+          off-screen; collapsable={false} keeps it in the native tree on
+          Android so it can be captured. */}
+      {showCounter && (
+        <View collapsable={false} ref={shareCardRef} style={s.offscreenCard} pointerEvents="none">
+          <ShareSummaryCard
+            year={thisYear}
+            deductionsCents={deductions.deductionsCents}
+            savingsCents={deductions.estimatedSavingsCents}
+            ratePct={Math.round(effectiveRate * 100)}
+            categories={topCategories}
+            brandName={brand.displayName}
+          />
+        </View>
+      )}
 
       {/* Logo */}
       <View style={s.header}>
@@ -243,6 +292,7 @@ export default function HomeScreen({ navigation }) {
 
 var s = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.heroBg, paddingHorizontal: 20, paddingTop: 64, alignItems: 'center' },
+  offscreenCard: { position: 'absolute', left: -9999, top: 0 },
   settingsBtn: { position: 'absolute', top: 52, right: 18, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 16, backgroundColor: colors.heroChip, zIndex: 10 },
   settingsBtnTxt: { fontSize: 11, color: colors.heroTextMuted, fontWeight: '600', letterSpacing: 0.3 },
   header: { alignItems: 'center', marginBottom: 18 },

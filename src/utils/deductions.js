@@ -81,3 +81,37 @@ export function deductionTotals(sessions, rate) {
     estimatedSavingsCents: estimatedSavingsCents,
   };
 }
+
+// Business-expense deductions grouped by Schedule C category, sorted
+// high-to-low. Used by the share card's "top 3 categorías" (brief 06).
+// Same predicate + cross-session dedup as deductionTotals, so the numbers
+// agree. Rows with no category fall under 'uncategorized'. Returns an
+// array of { category, deductionsCents }; `limit` caps the length
+// (default 3). Tolerant of malformed/empty input (returns []).
+export function topDeductionCategories(sessions, limit) {
+  var byCat = {};
+  var seen = new Set();
+  if (Array.isArray(sessions)) {
+    for (var i = 0; i < sessions.length; i++) {
+      var s = sessions[i];
+      if (!s || !Array.isArray(s.transactions)) continue;
+      for (var j = 0; j < s.transactions.length; j++) {
+        var tx = s.transactions[j];
+        if (tx && tx.type === 'debit' && tx.isBusiness &&
+            Number.isFinite(tx.amountCents)) {
+          var key = dedupKey(tx);
+          if (seen.has(key)) continue;
+          seen.add(key);
+          var cat = tx.category || 'uncategorized';
+          byCat[cat] = (byCat[cat] || 0) + tx.amountCents;
+        }
+      }
+    }
+  }
+  var arr = Object.keys(byCat).map(function(c) {
+    return { category: c, deductionsCents: byCat[c] };
+  });
+  arr.sort(function(a, b) { return b.deductionsCents - a.deductionsCents; });
+  var n = (typeof limit === 'number' && limit > 0) ? limit : 3;
+  return arr.slice(0, n);
+}

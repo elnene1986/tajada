@@ -64,6 +64,15 @@
   "counter.subtitle": "~{amount} menos de impuestos (est.)",
   "counter.detailTitle": "Tu tajada este año",
   "counter.disclaimer": "{deductions} en deducciones potenciales.\n~{savings} menos de impuestos (estimado, ≈{rate}%).\n\nEsto es una estimación, no asesoría fiscal. Tu preparador tiene la última palabra.",
+  "counter.shareCta": "Compartir mi resumen",
+  "counter.shareTitle": "Mi tajada este año",
+  "counter.shareError": "No se pudo crear la imagen para compartir.",
+
+  "shareCard.yearLabel": "Mi tajada {year}",
+  "shareCard.deductionsLabel": "en deducciones potenciales",
+  "shareCard.savings": "~{amount} menos de impuestos (est., ≈{rate}%)",
+  "shareCard.topLabel": "Top categorías",
+  "shareCard.disclaimer": "Estimación, no asesoría fiscal. Tu preparador tiene la última palabra.",
 
   "settings.rateTitle": "Tu tasa efectiva",
   "settings.rateSub": "La usamos para estimar tu ahorro. La mayoría de creadores está entre 22 % y 30 %.",

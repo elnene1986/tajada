@@ -1,10 +1,13 @@
 // Brief 06 — deducciones potenciales counter.
-import { deductionTotals, EFFECTIVE_RATE } from '../utils/deductions';
+import { deductionTotals, topDeductionCategories, EFFECTIVE_RATE } from '../utils/deductions';
 
 // Minimal transaction/session factories mirroring the real shape:
 // { type: 'credit'|'debit', isBusiness: bool, amountCents: int }.
 function tx(type, isBusiness, amountCents) {
   return { type: type, isBusiness: isBusiness, amountCents: amountCents };
+}
+function catTx(cat, amountCents, date, desc) {
+  return { type: 'debit', isBusiness: true, category: cat, amountCents: amountCents, date: date, description: desc };
 }
 function session(transactions) {
   return { id: 's', transactions: transactions };
@@ -69,11 +72,56 @@ describe('deductionTotals', () => {
     expect(r.deductionsCents).toBe(10598);
   });
 
+  it('honors a caller-supplied rate, falling back to EFFECTIVE_RATE', () => {
+    // 100000 × 0.30 = 30000.
+    expect(deductionTotals([session([tx('debit', true, 100000)])], 0.30).estimatedSavingsCents).toBe(30000);
+    // Invalid rates fall back to the default 0.25.
+    expect(deductionTotals([session([tx('debit', true, 100000)])], 0).estimatedSavingsCents).toBe(25000);
+    expect(deductionTotals([session([tx('debit', true, 100000)])], 2).estimatedSavingsCents).toBe(25000);
+    expect(deductionTotals([session([tx('debit', true, 100000)])]).estimatedSavingsCents).toBe(25000);
+  });
+
   it('returns zeros for empty / malformed input', () => {
     expect(deductionTotals([])).toEqual({ deductionsCents: 0, estimatedSavingsCents: 0 });
     expect(deductionTotals(null)).toEqual({ deductionsCents: 0, estimatedSavingsCents: 0 });
     expect(deductionTotals(undefined)).toEqual({ deductionsCents: 0, estimatedSavingsCents: 0 });
     expect(deductionTotals([{ id: 'x' }])).toEqual({ deductionsCents: 0, estimatedSavingsCents: 0 });
     expect(deductionTotals([session([tx('debit', true, NaN)])]).deductionsCents).toBe(0);
+  });
+});
+
+describe('topDeductionCategories', () => {
+  it('groups business expenses by category, sorted high-to-low, capped', () => {
+    const r = topDeductionCategories([session([
+      catTx('software', 5000, '2026-01-01', 'adobe'),
+      catTx('software', 3000, '2026-01-02', 'figma'),
+      catTx('gear', 20000, '2026-01-03', 'bh photo'),
+      catTx('meals', 1000, '2026-01-04', 'lunch'),
+      catTx('fees', 500, '2026-01-05', 'stripe'),
+      tx('debit', false, 99999),   // personal — excluded
+      tx('credit', true, 400000),  // income — excluded
+    ])], 3);
+    expect(r).toEqual([
+      { category: 'gear', deductionsCents: 20000 },
+      { category: 'software', deductionsCents: 8000 },
+      { category: 'meals', deductionsCents: 1000 },
+    ]);
+  });
+
+  it('buckets missing categories under "uncategorized" and dedups across sessions', () => {
+    const rows = [catTx('software', 5000, '2026-01-01', 'adobe'), catTx(undefined, 2000, '2026-01-02', 'misc')];
+    const r = topDeductionCategories([session(rows.slice()), session(rows.slice())]);
+    expect(r).toEqual([
+      { category: 'software', deductionsCents: 5000 },
+      { category: 'uncategorized', deductionsCents: 2000 },
+    ]);
+  });
+
+  it('returns [] for empty / malformed input and defaults limit to 3', () => {
+    expect(topDeductionCategories([])).toEqual([]);
+    expect(topDeductionCategories(null)).toEqual([]);
+    expect(topDeductionCategories([
+      session([catTx('a', 1, '1', 'a'), catTx('b', 2, '2', 'b'), catTx('c', 3, '3', 'c'), catTx('d', 4, '4', 'd')]),
+    ]).length).toBe(3);
   });
 });
