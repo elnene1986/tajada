@@ -17,7 +17,8 @@ Revised 2026-07-01 after the Phase 0 feasibility review. Two corrections drove t
 | 6 | 10 i18n reactivity + toggle | Make `t()` reactive + persisted locale + `en.json` (rewrite) + PDF-language setting. Spanish table already exists | M–L | ☐ |
 | 7 | 07 extension | On top of the shipped reminders: safe-harbor math, mark-as-paid, `taxConstants2026.js` | M | ☐ |
 | 8 | 08 receipt capture (manual) | v1 = manual-from-photo (evidence + typed amount/merchant). Flow 2 attach already shipped. Vision extraction deferred (needs backend) | M | ☐ |
-| 9 | 06 share card | The referral artifact. Needs `react-native-view-shot`. Not blocking | S | ☐ |
+| 9 | 12 bank export guides | Per-bank "¿cómo saco el archivo?" steps on the import screen. Interim answer to CSV friction (Plaid parked). Pure content, no gates — can slot anywhere a small win is needed | S | ☐ |
+| 10 | 06 share card | The referral artifact. Needs `react-native-view-shot`. Not blocking | S | ☐ |
 
 ## Per-phase Claude Code prompts
 
@@ -48,3 +49,5 @@ Revised 2026-07-01 after the Phase 0 feasibility review. Two corrections drove t
 - 2026-07-01 (Phase 0) — **Brief 09 footer points at the live GitHub Pages URL** (`https://elnene1986.github.io/tajada/`) via a single constant; swap for `tajada.app/preparadores` when the domain is registered. (B4)
 - 2026-07-01 (Phase 0) — Briefs 07 and 08 updated to reflect what already shipped in the 2026-06-29 code session (reminders module, receipt attach/backup). (B5)
 - 2026-07-01 (Phase 0) — Build order revised: 06 core → 09 footer → settings → 11 theme → 10 i18n → 07 extension → 08 manual → 06 share card.
+- 2026-07-01 — **Plaid auto-sync parked, not rejected.** It requires a backend, recurring per-account fees (breaks $14.99 one-time pricing), and breaks the on-device privacy promise. Revisit only if the contador distribution test succeeds AND users churn on the CSV step — then it's a deliberate pivot to subscription + backend. Interim answer: brief 12 (per-bank export guides).
+- 2026-07-01 — Brief 12 added (per-bank CSV export guides), slotted as phase 9.
